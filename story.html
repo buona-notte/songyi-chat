@@ -9,299 +9,339 @@
   html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
 
   body {
-    background: #fff9f4;
-    display: flex;
-    flex-direction: column;
+    background: #1a1a1a;
     height: 100vh;
+    position: relative;
   }
 
-  /* ==================== 舞台（场景背景） ==================== */
-  .stage {
-    flex: 1;
-    position: relative;
-    overflow: hidden;
-    background: #fff9f4;
-    transition: background-image 0.6s ease;
-  }
+  /* ==================== 场景背景（全屏） ==================== */
   .scene-bg {
-    position: absolute;
+    position: fixed;
     inset: 0;
     background-size: cover;
     background-position: center;
     transition: opacity 0.6s ease;
-    opacity: 0.55;
-  }
-  .stage::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: radial-gradient(ellipse at center, transparent 45%, rgba(255,249,244,0.55) 100%);
-    pointer-events: none;
     z-index: 0;
   }
-
-  /* 场景名（左上） */
-  .scene-tag {
+  /* 底部渐变遮罩，让对话框文字可读 */
+  .scene-bg::after {
+    content: '';
     position: absolute;
-    left: 16px;
-    top: 16px;
-    background: rgba(255,248,240,0.82);
-    backdrop-filter: blur(8px);
-    padding: 8px 14px;
-    border-radius: 10px;
-    border: 1px solid rgba(232,102,74,0.2);
-    font-size: 13px;
-    color: #5a3a2a;
-    z-index: 5;
+    left: 0; right: 0; bottom: 0;
+    height: 45%;
+    background: linear-gradient(to top, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.25) 50%, transparent 100%);
+    pointer-events: none;
   }
-  .scene-tag .sc-name { font-weight: 600; }
-  .scene-tag .sc-chap { font-size: 11px; color: #888; margin-top: 2px; }
 
-  /* 在场角色牌（左下） */
-  .cast-bar {
-    position: absolute;
-    left: 16px;
-    bottom: 16px;
-    display: flex;
-    gap: 8px;
-    z-index: 5;
-    flex-wrap: wrap;
-    max-width: 60%;
-  }
-  .cast-chip {
-    background: rgba(255,248,240,0.82);
-    backdrop-filter: blur(8px);
-    padding: 6px 12px;
-    border-radius: 20px;
-    border: 1px solid rgba(232,102,74,0.2);
-    font-size: 12px;
-    color: #5a3a2a;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .cast-chip .dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: #e8664a;
-    box-shadow: 0 0 6px #e8664a;
-  }
-  .cast-chip.npc .dot { background: #d4a574; box-shadow: 0 0 6px #d4a574; }
-
-  /* ==================== 对话流 ==================== */
-  .dialog {
-    position: absolute;
+  /* ==================== 角色立绘 ==================== */
+  .sprite-layer {
+    position: fixed;
     inset: 0;
-    overflow-y: auto;
-    padding: 70px 20px 140px;
     z-index: 2;
-    scroll-behavior: smooth;
+    pointer-events: none;
   }
-  .dialog::-webkit-scrollbar { width: 4px; }
-  .dialog::-webkit-scrollbar-thumb { background: rgba(232,102,74,0.3); border-radius: 2px; }
+  .sprite {
+    position: absolute;
+    bottom: 18%;
+    height: 78%;
+    max-height: 85vh;
+    filter: drop-shadow(0 10px 30px rgba(0,0,0,0.3));
+    transition: left 0.5s ease, right 0.5s ease, opacity 0.4s ease, transform 0.4s ease;
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  .sprite.show {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  .sprite.left  { left: 8%; }
+  .sprite.right { right: 8%; transform: scaleX(-1); }
+  .sprite.center { left: 50%; transform: translateX(-50%); }
+  .sprite.center.show { transform: translateX(-50%) translateY(0); }
 
-  .line {
-    margin-bottom: 14px;
-    animation: lineIn 0.5s ease;
-    max-width: 78%;
+  /* ==================== 底部对话框（经典文游样式） ==================== */
+  .dialog-box {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%);
+    width: 92%;
+    max-width: 900px;
+    background: rgba(255,255,255,0.94);
+    backdrop-filter: blur(14px);
+    border-radius: 16px;
+    border: 1px solid rgba(255,255,255,0.6);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    z-index: 10;
+    overflow: hidden;
   }
-  @keyframes lineIn {
-    from { opacity: 0; transform: translateY(10px); }
-    to { opacity: 1; transform: translateY(0); }
+  /* 说话者名字标签 */
+  .speaker-tag {
+    position: absolute;
+    top: -14px;
+    left: 24px;
+    background: linear-gradient(135deg, #6b8e7f, #4a6b5a);
+    color: #fff;
+    padding: 5px 20px 5px 18px;
+    border-radius: 8px 8px 14px 14px;
+    font-size: 15px;
+    font-weight: 600;
+    letter-spacing: 1px;
+    box-shadow: 0 4px 12px rgba(74,107,90,0.4);
   }
-  .line .who {
-    font-size: 12px;
-    color: #888;
-    margin-bottom: 3px;
-    margin-left: 4px;
+  .speaker-tag.narration {
+    background: linear-gradient(135deg, #888, #555);
   }
-  .line .bubble {
-    background: rgba(255,248,240,0.92);
-    backdrop-filter: blur(6px);
-    padding: 10px 14px;
-    border-radius: 14px;
-    border: 1px solid rgba(232,102,74,0.15);
-    font-size: 14px;
-    line-height: 1.6;
-    color: #3d2817;
-    box-shadow: 0 4px 14px rgba(90,58,42,0.06);
+  .speaker-tag.me {
+    background: linear-gradient(135deg, #c97b5a, #a85a3a);
+  }
+
+  .dialog-content {
+    padding: 28px 24px 18px;
+    font-size: 15.5px;
+    line-height: 1.75;
+    color: #2c2c2c;
+    max-height: 180px;
+    overflow-y: auto;
+    scroll-behavior: smooth;
     white-space: pre-wrap;
   }
-  .line.narration .bubble {
-    background: rgba(253,240,231,0.85);
-    border: 1px solid rgba(212,165,116,0.3);
-    font-style: italic;
-    color: #6b4a2e;
-  }
-  .line.narration .who { color: #b8860b; }
-  .line.me .bubble {
-    background: rgba(232,102,74,0.12);
-    border: 1px solid rgba(232,102,74,0.3);
-    color: #8a3a1a;
-  }
-  .line.me .who { color: #e8664a; font-weight: 600; }
+  .dialog-content::-webkit-scrollbar { width: 3px; }
+  .dialog-content::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 2px; }
 
-  .typing .bubble {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 14px 18px;
+  .dialog-content.narration {
+    color: #5a5a5a;
+    font-style: italic;
   }
-  .typing .dots span {
-    display: inline-block;
-    width: 6px; height: 6px;
-    background: #b8860b;
+
+  /* 打字指示 */
+  .typing-dots {
+    display: inline-flex;
+    gap: 5px;
+    padding: 4px 0;
+  }
+  .typing-dots span {
+    width: 7px; height: 7px;
+    background: #888;
     border-radius: 50%;
     animation: tdot 1.2s infinite;
   }
-  .typing .dots span:nth-child(2){ animation-delay:.15s; }
-  .typing .dots span:nth-child(3){ animation-delay:.3s; }
-  @keyframes tdot { 0%,60%,100%{opacity:.2; transform:translateY(0);} 30%{opacity:1; transform:translateY(-3px);} }
+  .typing-dots span:nth-child(2){ animation-delay:.15s; }
+  .typing-dots span:nth-child(3){ animation-delay:.3s; }
+  @keyframes tdot { 0%,60%,100%{opacity:.2; transform:translateY(0);} 30%{opacity:1; transform:translateY(-4px);} }
 
   /* ==================== 走向选项 ==================== */
   .choices {
-    position: absolute;
-    left: 0; right: 0;
-    bottom: 70px;
-    padding: 12px 16px;
+    position: fixed;
+    left: 50%;
+    bottom: 240px;
+    transform: translateX(-50%);
+    width: 88%;
+    max-width: 700px;
+    z-index: 15;
     display: none;
     flex-direction: column;
-    gap: 8px;
-    z-index: 6;
-    background: linear-gradient(transparent, rgba(255,249,244,0.95) 40%);
+    gap: 10px;
   }
   .choices.show { display: flex; }
-  .choice-hint {
-    font-size: 11px;
-    color: #b8860b;
-    text-align: center;
-    margin-bottom: 4px;
-    font-style: italic;
-  }
   .choice-btn {
-    background: rgba(255,248,240,0.95);
-    border: 1px solid rgba(232,102,74,0.25);
-    padding: 10px 14px;
+    background: rgba(255,255,255,0.92);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.5);
+    padding: 14px 18px;
     border-radius: 12px;
-    font-size: 13px;
-    color: #5a3a2a;
+    font-size: 14.5px;
+    color: #3a3a3a;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.18s;
     text-align: left;
-    line-height: 1.4;
+    line-height: 1.5;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
   }
-  .choice-btn:hover { background: #fdf0e7; border-color: #e8664a; transform: translateY(-1px); }
+  .choice-btn:hover {
+    background: #fff;
+    transform: translateX(6px);
+    box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+  }
   .choice-other {
-    background: rgba(253,240,231,0.95);
-    border: 1px dashed rgba(212,165,116,0.5);
+    background: rgba(200,200,200,0.85);
+    border-style: dashed;
     font-style: italic;
-    color: #8a6a3a;
+    color: #666;
   }
 
-  /* ==================== 底部输入条 ==================== */
-  .input-bar {
-    flex-shrink: 0;
-    padding: 12px 16px 16px;
-    background: rgba(255,250,244,0.95);
-    backdrop-filter: blur(12px);
-    border-top: 1px solid rgba(232,102,74,0.15);
+  /* ==================== 顶栏：场景/章节/控制 ==================== */
+  .top-bar {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 20;
+    padding: 14px 20px;
     display: flex;
-    align-items: flex-end;
-    gap: 10px;
-    z-index: 10;
-    position: relative;
+    justify-content: space-between;
+    align-items: flex-start;
+    pointer-events: none;
   }
-  .input-bar textarea {
-    flex: 1;
-    border: 1px solid rgba(232,102,74,0.2);
-    background: #fff9f4;
-    border-radius: 18px;
-    padding: 9px 16px;
-    font-size: 14px;
-    line-height: 1.4;
-    outline: none;
-    resize: none;
-    max-height: 100px;
-    font-family: inherit;
-    transition: border-color .2s, background .2s;
-  }
-  .input-bar textarea:focus { border-color:#e8664a; background:#fff; }
-  .input-bar .send {
-    padding: 9px 18px;
-    border-radius: 18px;
-    border: none;
-    background: #e8664a;
+  .top-bar > * { pointer-events: auto; }
+
+  .scene-info {
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(8px);
+    padding: 8px 16px;
+    border-radius: 10px;
     color: #fff;
     font-size: 13px;
-    font-weight: 500;
-    cursor: pointer;
-    flex-shrink: 0;
-    transition: background .15s;
   }
-  .input-bar .send:hover { background:#d4573c; }
-  .input-bar .send[disabled] { background:#d4c5b0; cursor:not-allowed; }
+  .scene-info .sc-name { font-weight: 600; letter-spacing: 1px; }
+  .scene-info .sc-chap { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 3px; }
 
-  /* 存档按钮 */
-  .save-btn {
-    flex-shrink: 0;
-    width: 40px; height: 40px;
+  .top-controls {
+    display: flex;
+    gap: 8px;
+  }
+  .ctrl-btn {
+    width: 38px; height: 38px;
     border-radius: 50%;
-    border: 1px solid rgba(232,102,74,0.25);
-    background: #fff9f4;
-    font-size: 18px;
+    border: 1px solid rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(8px);
+    color: #fff;
+    font-size: 16px;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    position: relative;
     transition: background .15s;
   }
-  .save-btn:hover { background:#fdf0e7; }
+  .ctrl-btn:hover { background: rgba(0,0,0,0.65); }
+
+  /* 在场角色指示 */
+  .cast-indicator {
+    position: fixed;
+    top: 70px;
+    left: 20px;
+    z-index: 15;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .cast-chip {
+    background: rgba(0,0,0,0.4);
+    backdrop-filter: blur(6px);
+    padding: 4px 12px;
+    border-radius: 14px;
+    color: #fff;
+    font-size: 12px;
+  }
+  .cast-chip.npc { background: rgba(100,70,40,0.5); }
+
+  /* ==================== 输入（折叠/展开） ==================== */
+  .input-toggle {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    z-index: 25;
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #6b8e7f, #4a6b5a);
+    color: #fff;
+    font-size: 20px;
+    cursor: pointer;
+    box-shadow: 0 6px 20px rgba(74,107,90,0.5);
+    transition: transform .2s;
+  }
+  .input-toggle:hover { transform: scale(1.08); }
+
+  .input-bar {
+    position: fixed;
+    left: 50%;
+    bottom: 20px;
+    transform: translateX(-50%) translateY(120%);
+    width: 92%;
+    max-width: 900px;
+    background: rgba(255,255,255,0.95);
+    backdrop-filter: blur(14px);
+    border-radius: 14px;
+    border: 1px solid rgba(255,255,255,0.6);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.25);
+    padding: 12px;
+    z-index: 25;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    transition: transform 0.35s cubic-bezier(.2,.8,.2,1);
+  }
+  .input-bar.open {
+    transform: translateX(-50%) translateY(0);
+  }
+  .input-bar textarea {
+    flex: 1;
+    border: 1px solid #e0e0e0;
+    background: #fff;
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 14px;
+    line-height: 1.5;
+    outline: none;
+    resize: none;
+    max-height: 120px;
+    font-family: inherit;
+  }
+  .input-bar textarea:focus { border-color:#6b8e7f; }
+  .input-bar .send {
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    background: #6b8e7f;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .input-bar .send[disabled] { background:#ccc; cursor:not-allowed; }
+  .input-bar .close-input {
+    border: none;
+    background: #f0f0f0;
+    color: #666;
+    padding: 10px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+  }
 
   /* ==================== 存档面板 ==================== */
   .save-panel {
-    position: absolute;
-    left: 16px;
-    bottom: 100%;
-    margin-bottom: 8px;
+    position: fixed;
+    right: 20px;
+    top: 70px;
     width: 300px;
-    max-height: 70vh;
+    max-height: 65vh;
     background: #fff;
     border-radius: 16px;
-    box-shadow: 0 -4px 24px rgba(90,58,42,0.12);
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     z-index: 30;
     display: none;
     flex-direction: column;
     overflow: hidden;
-    border: 1px solid rgba(232,102,74,0.2);
   }
   .save-panel.open { display: flex; }
   .save-head {
-    padding: 12px 16px;
-    border-bottom: 1px solid #f5ede5;
+    padding: 14px 16px;
+    background: linear-gradient(135deg, #6b8e7f, #4a6b5a);
+    color: #fff;
     display: flex;
     justify-content: space-between;
     align-items: center;
     font-weight: 600;
     font-size: 14px;
-    color: #5a3a2a;
   }
-  .save-close {
-    border: none;
-    background: none;
-    font-size: 16px;
-    cursor: pointer;
-    color: #999;
-  }
-  .save-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 8px;
-  }
+  .save-close { border: none; background: none; color: #fff; font-size: 18px; cursor: pointer; }
+  .save-list { flex: 1; overflow-y: auto; padding: 8px; }
   .save-slot {
     padding: 10px 12px;
     border-radius: 10px;
     margin-bottom: 6px;
-    border: 1px solid #f5ede5;
+    border: 1px solid #eee;
     cursor: pointer;
     transition: background .15s;
     display: flex;
@@ -309,27 +349,25 @@
     align-items: center;
     gap: 8px;
   }
-  .save-slot:hover { background: #fdf6ee; }
+  .save-slot:hover { background: #f5f5f5; }
   .save-slot .slot-info { flex: 1; min-width: 0; }
-  .save-slot .slot-name { font-size: 13px; color: #5a3a2a; font-weight: 500; }
+  .save-slot .slot-name { font-size: 13px; color: #333; font-weight: 500; }
   .save-slot .slot-meta { font-size: 11px; color: #999; margin-top: 2px; }
   .save-slot .slot-actions { display: flex; gap: 6px; }
   .save-slot .slot-act {
     border: none;
-    background: #fdf0e7;
-    color: #8a6a3a;
+    background: #f0f0f0;
+    color: #555;
     padding: 3px 8px;
-    border-radius: 8px;
+    border-radius: 6px;
     font-size: 11px;
     cursor: pointer;
   }
-  .save-slot .slot-act:hover { background: #e8664a; color: #fff; }
+  .save-slot .slot-act:hover { background: #6b8e7f; color: #fff; }
   .save-slot .slot-act.del:hover { background: #c0392b; }
-  .save-slot.auto { border-style: dashed; }
-  .save-slot.empty .slot-name { color: #ccc; }
   .save-foot {
     padding: 10px 16px;
-    border-top: 1px solid #f5ede5;
+    border-top: 1px solid #f0f0f0;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -337,21 +375,20 @@
     color: #888;
   }
   .save-now {
-    border: 1px solid rgba(232,102,74,0.3);
-    background: #fff;
-    color: #e8664a;
-    padding: 5px 12px;
-    border-radius: 10px;
+    border: none;
+    background: #6b8e7f;
+    color: #fff;
+    padding: 6px 14px;
+    border-radius: 8px;
     font-size: 12px;
     cursor: pointer;
   }
-  .save-now:hover { background: #fdf0e7; }
 
   /* ==================== 记忆码弹窗 ==================== */
   .code-modal {
     position: fixed;
     inset: 0;
-    background: rgba(90,58,42,0.5);
+    background: rgba(0,0,0,0.6);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -361,82 +398,143 @@
   .code-box {
     background: #fff;
     border-radius: 20px;
-    padding: 28px 24px;
+    padding: 32px 28px;
     width: 90%;
-    max-width: 340px;
+    max-width: 360px;
     text-align: center;
-    box-shadow: 0 20px 60px rgba(90,58,42,0.2);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
   }
-  .code-title { font-size: 18px; font-weight: 700; color: #5a3a2a; margin-bottom: 10px; }
-  .code-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 18px; }
+  .code-title { font-size: 20px; font-weight: 700; color: #3a3a3a; margin-bottom: 10px; }
+  .code-desc { font-size: 13px; color: #666; line-height: 1.7; margin-bottom: 20px; }
   .code-input {
     width: 100%;
-    padding: 12px 16px;
+    padding: 14px 16px;
     border: 1px solid #ddd;
     border-radius: 10px;
     font-size: 15px;
     outline: none;
-    margin-bottom: 14px;
+    margin-bottom: 16px;
     text-align: center;
   }
-  .code-input:focus { border-color: #e8664a; }
+  .code-input:focus { border-color: #6b8e7f; }
   .code-save {
     width: 100%;
-    padding: 12px;
+    padding: 14px;
     border: none;
-    background: #e8664a;
+    background: linear-gradient(135deg, #6b8e7f, #4a6b5a);
     color: #fff;
     border-radius: 10px;
     font-size: 15px;
     font-weight: 600;
     cursor: pointer;
   }
-  .code-save:hover { background: #d4573c; }
 
-  /* 移动端 */
+  /* 历史对话（点击对话框上滑查看） */
+  .history-viewer {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 50;
+    display: none;
+    flex-direction: column;
+  }
+  .history-viewer.open { display: flex; }
+  .history-head {
+    padding: 16px 20px;
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 14px;
+  }
+  .history-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 20px;
+  }
+  .history-line {
+    margin-bottom: 14px;
+    color: #fff;
+  }
+  .history-line .h-who { font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 4px; }
+  .history-line .h-text { font-size: 14px; line-height: 1.6; }
+
+  /* 移动端适配 */
   @media (max-width: 600px) {
-    .dialog { padding: 60px 14px 130px; }
-    .line { max-width: 88%; }
-    .cast-bar { max-width: 80%; }
-    .scene-tag { font-size: 12px; padding: 6px 12px; }
+    .sprite { height: 65%; bottom: 22%; }
+    .sprite.left { left: -5%; }
+    .sprite.right { right: -5%; }
+    .dialog-box { width: 95%; bottom: 12px; }
+    .dialog-content { max-height: 150px; font-size: 14px; padding: 26px 18px 14px; }
+    .speaker-tag { font-size: 13px; padding: 4px 14px 4px 12px; }
+    .scene-info { font-size: 12px; padding: 6px 12px; }
+    .choices { bottom: 220px; width: 92%; }
   }
 </style>
 </head>
 <body>
 
-<div class="stage" id="stage">
-  <div class="scene-bg" id="sceneBg"></div>
+<!-- 场景背景 -->
+<div class="scene-bg" id="sceneBg"></div>
 
-  <div class="scene-tag">
+<!-- 角色立绘层 -->
+<div class="sprite-layer" id="spriteLayer"></div>
+
+<!-- 顶栏：场景/章节/控制 -->
+<div class="top-bar">
+  <div class="scene-info">
     <div class="sc-name" id="scName">教堂·花园</div>
     <div class="sc-chap" id="scChap">第一章 · 来客</div>
   </div>
-
-  <div class="cast-bar" id="castBar"></div>
-
-  <div class="dialog" id="dialog"></div>
-
-  <div class="choices" id="choices">
-    <div class="choice-hint">— 选择一个走向，或直接打字输入其他 —</div>
+  <div class="top-controls">
+    <button class="ctrl-btn" id="saveBtn" title="存档">📂</button>
+    <button class="ctrl-btn" id="historyBtn" title="历史">📜</button>
   </div>
 </div>
 
-<div class="input-bar">
-  <button class="save-btn" id="saveBtn" title="存档">📂</button>
-  <textarea id="input" rows="1" placeholder="外界影响：天气、访客、事件..."></textarea>
-  <button class="send" id="sendBtn" disabled>推进</button>
+<!-- 在场角色指示 -->
+<div class="cast-indicator" id="castBar"></div>
 
-  <div class="save-panel" id="savePanel">
-    <div class="save-head">
-      <span>存档（20 档）</span>
-      <button class="save-close" id="saveClose">✕</button>
-    </div>
-    <div class="save-list" id="saveList"></div>
-    <div class="save-foot">
-      <span id="saveMeta">未加载</span>
-      <button class="save-now" id="saveNow">存入新档</button>
-    </div>
+<!-- 底部对话框 -->
+<div class="dialog-box" id="dialogBox">
+  <div class="speaker-tag" id="speakerTag">旁白</div>
+  <div class="dialog-content" id="dialogContent">点击右下角 ✏️ 开始</div>
+</div>
+
+<!-- 走向选项 -->
+<div class="choices" id="choices"></div>
+
+<!-- 输入按钮（折叠时） -->
+<button class="input-toggle" id="inputToggle" title="输入外界影响">✏️</button>
+
+<!-- 展开的输入条 -->
+<div class="input-bar" id="inputBar">
+  <textarea id="input" rows="1" placeholder="外界影响：天气、访客、事件..."></textarea>
+  <button class="close-input" id="closeInput">收起</button>
+  <button class="send" id="sendBtn" disabled>推进</button>
+</div>
+
+<!-- 存档面板 -->
+<div class="save-panel" id="savePanel">
+  <div class="save-head">
+    <span>存档（20 档）</span>
+    <button class="save-close" id="saveClose">✕</button>
   </div>
+  <div class="save-list" id="saveList"></div>
+  <div class="save-foot">
+    <span id="saveMeta">未加载</span>
+    <button class="save-now" id="saveNow">存入新档</button>
+  </div>
+</div>
+
+<!-- 历史对话 -->
+<div class="history-viewer" id="historyViewer">
+  <div class="history-head">
+    <span>📜 历史对话</span>
+    <button class="save-close" id="historyClose">✕</button>
+  </div>
+  <div class="history-list" id="historyList"></div>
 </div>
 
 <!-- 记忆码弹窗 -->
@@ -444,7 +542,7 @@
   <div class="code-box">
     <div class="code-title">设定存档码</div>
     <div class="code-desc">用一个码把所有设备、所有档位的进度连起来。<br/>手机和电脑填同一个码，存档互通。</div>
-    <input type="text" id="codeInput" class="code-input" placeholder="4位以上，随便起（比如 north123）" maxlength="20" />
+    <input type="text" id="codeInput" class="code-input" placeholder="3位以上，随便起（比如 beixing123）" maxlength="20" />
     <button class="code-save" id="codeSave">开始</button>
   </div>
 </div>
@@ -495,14 +593,24 @@ C. xxx
 中文回复。语气不要过于书面，但也不要现代口语——保持中世纪古欧洲的质感，但不刻意堆砌古词。`;
 
 /* ========= DOM ========= */
-const dialogEl = document.getElementById('dialog');
-const input = document.getElementById('input');
-const sendBtn = document.getElementById('sendBtn');
-const choicesEl = document.getElementById('choices');
+const sceneBg = document.getElementById('sceneBg');
+const spriteLayer = document.getElementById('spriteLayer');
 const scName = document.getElementById('scName');
 const scChap = document.getElementById('scChap');
-const sceneBg = document.getElementById('sceneBg');
 const castBar = document.getElementById('castBar');
+const speakerTag = document.getElementById('speakerTag');
+const dialogContent = document.getElementById('dialogContent');
+const choicesEl = document.getElementById('choices');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const inputToggle = document.getElementById('inputToggle');
+const inputBar = document.getElementById('inputBar');
+const closeInput = document.getElementById('closeInput');
+const historyBtn = document.getElementById('historyBtn');
+const historyViewer = document.getElementById('historyViewer');
+const historyClose = document.getElementById('historyClose');
+const historyList = document.getElementById('historyList');
+const dialogBox = document.getElementById('dialogBox');
 
 /* ========= 场景状态 ========= */
 const SCENE_BG = {
@@ -511,19 +619,60 @@ const SCENE_BG = {
   '卧室': 'scene-bedroom.jpg',
   '厨房': 'scene-kitchen.jpg'
 };
-let currentScene = '花园';
-let currentChapter = '第一章 · 来客';
-let currentCast = ['南倾檐', '宋意'];  // 当前在场角色
-const history = [];  // AI 对话历史
-let busy = false;
+
+// 角色立绘映射
+const SPRITE_MAP = {
+  '南倾檐': 'sprite-nanqingyan.jpg',
+  '宋意': 'sprite-songyi.jpg'
+};
+
+// 立绘 DOM 管理
+const sprites = {};  // name -> { img, side }
+
+function createSprite(name) {
+  if (sprites[name]) return sprites[name].img;
+  const img = document.createElement('img');
+  img.className = 'sprite';
+  img.src = SPRITE_MAP[name] || '';
+  img.alt = name;
+  if (!SPRITE_MAP[name]) img.style.display = 'none';
+  spriteLayer.appendChild(img);
+  sprites[name] = { img, side: null };
+  return img;
+}
+
+function showSprite(name, side='center') {
+  if (!sprites[name]) createSprite(name);
+  const s = sprites[name];
+  s.side = side;
+  s.img.className = 'sprite ' + side + ' show';
+  if (SPRITE_MAP[name]) s.img.style.display = '';
+}
+
+function hideSprite(name) {
+  if (sprites[name]) {
+    sprites[name].img.classList.remove('show');
+  }
+}
+
+function clearAllSprites() {
+  Object.keys(sprites).forEach(n => hideSprite(n));
+}
 
 function setScene(name) {
   if (!SCENE_BG[name]) return;
   currentScene = name;
   scName.textContent = '教堂·' + name;
-  const img = SCENE_BG[name];
-  sceneBg.style.backgroundImage = `url('${img}')`;
+  sceneBg.style.backgroundImage = `url('${SCENE_BG[name]}')`;
 }
+let currentScene = '花园';
+let currentChapter = '第一章 · 来客';
+let currentCast = ['南倾檐', '宋意'];
+const history = [];
+const allLines = [];  // 所有对话历史（用于历史面板）
+let busy = false;
+let lastSpeaker = null;
+
 setScene('花园');
 
 function renderCast() {
@@ -532,32 +681,75 @@ function renderCast() {
     const chip = document.createElement('div');
     const isNpc = !['南倾檐','宋意'].includes(name);
     chip.className = 'cast-chip' + (isNpc ? ' npc' : '');
-    chip.innerHTML = `<span class="dot"></span>${name}`;
+    chip.textContent = name;
     castBar.appendChild(chip);
+  });
+  // 自动展示立绘
+  clearAllSprites();
+  let sides = ['left', 'right'];
+  let i = 0;
+  currentCast.forEach(name => {
+    if (SPRITE_MAP[name]) {
+      showSprite(name, sides[i % sides.length]);
+      i++;
+    }
   });
 }
 renderCast();
 
-/* ========= 对话渲染 ========= */
-function addLine(who, text, type='') {
-  const line = document.createElement('div');
-  line.className = 'line ' + type;
-  let whoLabel = who;
-  if (type === 'narration') whoLabel = '';
-  line.innerHTML = (whoLabel ? `<div class="who">${whoLabel}</div>` : '') +
-    `<div class="bubble">${escapeHtml(text)}</div>`;
-  dialogEl.appendChild(line);
-  dialogEl.scrollTop = dialogEl.scrollHeight;
-  return line;
+/* ========= 对话渲染（单条推进，文游式） ========= */
+function setDialog(who, text, type='') {
+  const tag = speakerTag;
+  tag.classList.remove('narration', 'me');
+  if (type === 'narration') {
+    tag.textContent = '旁白';
+    tag.classList.add('narration');
+  } else if (type === 'me') {
+    tag.textContent = '玩家';
+    tag.classList.add('me');
+  } else {
+    tag.textContent = who;
+  }
+  dialogContent.classList.remove('narration');
+  if (type === 'narration') dialogContent.classList.add('narration');
+  dialogContent.innerHTML = escapeHtml(text);
+
+  // 切立绘：如果这个角色有立绘，让他动一下
+  if (who && SPRITE_MAP[who]) {
+    if (lastSpeaker !== who) {
+      // 重新排列：说话者居中，其他人左右
+      clearAllSprites();
+      const others = currentCast.filter(n => n !== who && SPRITE_MAP[n]);
+      showSprite(who, 'center');
+      if (others[0]) showSprite(others[0], 'left');
+      if (others[1]) showSprite(others[1], 'right');
+      lastSpeaker = who;
+    }
+  }
 }
 
-function addTyping(who='旁白') {
-  return addLine(who, '<div class="dots"><span></span><span></span><span></span></div>', 'typing');
+function showTyping(who='旁白') {
+  setDialog(who, '<div class="typing-dots"><span></span><span></span><span></span></div>', '');
 }
 
 function escapeHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
+
+/* ========= 历史面板 ========= */
+function openHistory() {
+  historyList.innerHTML = '';
+  allLines.forEach(l => {
+    const el = document.createElement('div');
+    el.className = 'history-line';
+    el.innerHTML = `<div class="h-who">${escapeHtml(l.who)}</div><div class="h-text">${escapeHtml(l.text)}</div>`;
+    historyList.appendChild(el);
+  });
+  historyViewer.classList.add('open');
+}
+function closeHistory() { historyViewer.classList.remove('open'); }
+historyBtn.addEventListener('click', openHistory);
+historyClose.addEventListener('click', closeHistory);
 
 /* ========= AI 调用 ========= */
 const IS_CF_PAGES = /\.pages\.dev$/.test(location.hostname);
@@ -600,7 +792,6 @@ async function callAI(userText) {
 
 /* ========= 解析 AI 回复 ========= */
 function parseAIResponse(text) {
-  // 提取选项
   let choices = [];
   const choiceMatch = text.match(/【选项】([\s\S]*?)$/);
   if (choiceMatch) {
@@ -608,20 +799,17 @@ function parseAIResponse(text) {
     choices = choiceMatch[1].match(/[A-D]\.\s*[^\n]+/g) || [];
     choices = choices.map(c => c.replace(/^[A-D]\.\s*/, '').trim());
   }
-  // 提取场景
   const sceneMatch = text.match(/【场景：(.+?)】/);
   if (sceneMatch) {
     setScene(sceneMatch[1]);
     text = text.replace(/【场景：.+?】/g, '').trim();
   }
-  // 提取在场角色更新
   const castMatch = text.match(/【在场：(.+?)】/);
   if (castMatch) {
     currentCast = castMatch[1].split(/[、，,]/).map(s=>s.trim()).filter(Boolean);
     renderCast();
     text = text.replace(/【在场：.+?】/g, '').trim();
   }
-  // 解析段落
   const lines = [];
   const blocks = text.split(/\n(?=[^\n])/).filter(Boolean);
   for (const block of blocks) {
@@ -629,7 +817,7 @@ function parseAIResponse(text) {
     if (m) {
       lines.push({ type: 'narration', who: '旁白', text: m[1].trim() });
     } else {
-      const m2 = block.match(/^([^：:]{2,8})[：:]\s*([\s\S]+)/);
+      const m2 = block.match(/^([^：:]{1,8})[：:]\s*([\s\S]+)/);
       if (m2) {
         lines.push({ type: '', who: m2[1].trim(), text: m2[2].trim() });
       } else {
@@ -640,9 +828,18 @@ function parseAIResponse(text) {
   return { lines, choices };
 }
 
-function renderAIResponse(text) {
+/* ========= 逐条显示（打字机式） ========= */
+async function playLines(lines, delay=600) {
+  for (const l of lines) {
+    setDialog(l.who, l.text, l.type);
+    allLines.push({ who: l.who, text: l.text });
+    await new Promise(r => setTimeout(r, Math.max(delay, l.text.length * 30)));
+  }
+}
+
+async function renderAIResponse(text) {
   const { lines, choices } = parseAIResponse(text);
-  lines.forEach(l => addLine(l.who, l.text, l.type));
+  await playLines(lines);
   if (choices.length) showChoices(choices);
 }
 
@@ -653,18 +850,19 @@ function showChoices(list) {
     btn.className = 'choice-btn';
     btn.textContent = String.fromCharCode(65+i) + '. ' + c;
     btn.addEventListener('click', () => {
-      addLine('玩家选择', c, 'me');
+      allLines.push({ who: '玩家选择', text: c });
+      setDialog('玩家', c, 'me');
       hideChoices();
       pushChoice(c);
     });
     choicesEl.appendChild(btn);
   });
-  // "其他"按钮
   const other = document.createElement('button');
   other.className = 'choice-btn choice-other';
   other.textContent = '其他（自己写）';
   other.addEventListener('click', () => {
     hideChoices();
+    openInput();
     input.focus();
   });
   choicesEl.appendChild(other);
@@ -676,18 +874,30 @@ function hideChoices() {
   choicesEl.querySelectorAll('.choice-btn').forEach(b => b.remove());
 }
 
+function openInput() {
+  inputBar.classList.add('open');
+  inputToggle.style.display = 'none';
+}
+function closeInputBar() {
+  inputBar.classList.remove('open');
+  inputToggle.style.display = 'block';
+  input.value = '';
+  autoGrow();
+  updateSend();
+}
+inputToggle.addEventListener('click', openInput);
+closeInput.addEventListener('click', closeInputBar);
+
 async function pushChoice(choiceText) {
   if (busy) return;
   busy = true;
   sendBtn.disabled = true;
-  const typing = addTyping('剧情');
+  showTyping('剧情');
   try {
     const text = await callAI('__choice__:' + choiceText);
-    typing.remove();
-    renderAIResponse(text);
+    await renderAIResponse(text);
   } catch (e) {
-    typing.remove();
-    addLine('旁白', '（剧情卡了一下，再来一次。）', 'narration');
+    setDialog('旁白', '（剧情卡了一下，再来一次。）', 'narration');
     console.error(e);
   } finally {
     busy = false;
@@ -695,7 +905,6 @@ async function pushChoice(choiceText) {
   }
 }
 
-/* ========= 发送（外界影响） ========= */
 async function send() {
   const val = input.value.trim();
   if (!val || busy) return;
@@ -704,15 +913,15 @@ async function send() {
   autoGrow();
   updateSend();
   hideChoices();
-  addLine('外界影响', val, 'me');
-  const typing = addTyping('剧情');
+  closeInputBar();
+  setDialog('玩家', val, 'me');
+  allLines.push({ who: '外界影响', text: val });
+  showTyping('剧情');
   try {
     const text = await callAI(val);
-    typing.remove();
-    renderAIResponse(text);
+    await renderAIResponse(text);
   } catch (e) {
-    typing.remove();
-    addLine('旁白', '（剧情卡了一下，再来一次。）', 'narration');
+    setDialog('旁白', '（剧情卡了一下，再来一次。）', 'narration');
     console.error(e);
   } finally {
     busy = false;
@@ -722,7 +931,7 @@ async function send() {
 
 function autoGrow() {
   input.style.height = 'auto';
-  input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+  input.style.height = Math.min(input.scrollHeight, 120) + 'px';
 }
 function updateSend() { sendBtn.disabled = !input.value.trim(); }
 input.addEventListener('input', () => { autoGrow(); updateSend(); });
@@ -744,7 +953,6 @@ const MAX_SLOTS = 20;
 let userCode = localStorage.getItem(CODE_KEY) || '';
 let cloudOK = false;
 
-// 对话历史本地缓存
 function saveHistory() {
   try { localStorage.setItem(HIST_KEY, JSON.stringify(history.slice(-80))); } catch {}
 }
@@ -752,7 +960,6 @@ function loadHistory() {
   try { history.push(...(JSON.parse(localStorage.getItem(HIST_KEY))||[])); } catch {}
 }
 
-// 存档
 async function saveSlot(name) {
   const slot = {
     code: userCode,
@@ -763,7 +970,6 @@ async function saveSlot(name) {
     history: history.slice(-60),
     created_at: new Date().toISOString()
   };
-  let saved = false;
   if (userCode) {
     try {
       const resp = await fetch(`${SUPA_URL}/rest/v1/story_saves`, {
@@ -772,14 +978,12 @@ async function saveSlot(name) {
         body: JSON.stringify(slot)
       });
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
-      saved = true;
       cloudOK = true;
     } catch (e) {
       console.warn('[存档] 云端写入失败', e.message);
       cloudOK = false;
     }
   }
-  // 本地备份
   const local = JSON.parse(localStorage.getItem(SLOT_KEY) || '[]');
   local.unshift({ ...slot, id: 'local_' + Date.now() });
   localStorage.setItem(SLOT_KEY, JSON.stringify(local.slice(0, MAX_SLOTS)));
@@ -787,9 +991,7 @@ async function saveSlot(name) {
 }
 
 async function loadSlots() {
-  if (!userCode) {
-    return JSON.parse(localStorage.getItem(SLOT_KEY) || '[]');
-  }
+  if (!userCode) return JSON.parse(localStorage.getItem(SLOT_KEY) || '[]');
   try {
     const resp = await fetch(
       `${SUPA_URL}/rest/v1/story_saves?select=id,name,scene,chapter,cast_list,created_at&code=eq.${encodeURIComponent(userCode)}&order=created_at.desc&limit=${MAX_SLOTS}`,
@@ -799,7 +1001,6 @@ async function loadSlots() {
     cloudOK = true;
     return await resp.json();
   } catch (e) {
-    console.warn('[存档] 云端读取失败', e.message);
     cloudOK = false;
     return JSON.parse(localStorage.getItem(SLOT_KEY) || '[]');
   }
@@ -811,17 +1012,11 @@ async function loadSlotById(id) {
     return local.find(s => s.id === id);
   }
   try {
-    const resp = await fetch(
-      `${SUPA_URL}/rest/v1/story_saves?select=*&id=eq.${id}`,
-      { headers: supaH() }
-    );
+    const resp = await fetch(`${SUPA_URL}/rest/v1/story_saves?select=*&id=eq.${id}`, { headers: supaH() });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const data = await resp.json();
     return data[0];
-  } catch (e) {
-    console.warn('[存档] 读取失败', e.message);
-    return null;
-  }
+  } catch (e) { return null; }
 }
 
 async function deleteSlot(id) {
@@ -842,29 +1037,32 @@ async function applySlot(slot) {
     history.push(...slot.history);
     saveHistory();
   }
-  // 清屏重演最后几条
-  dialogEl.innerHTML = '';
-  addLine('旁白', `（已读取存档：${slot.name}）`, 'narration');
-  // 重演最后 3 条 AI 回复
+  allLines.length = 0;
+  setDialog('旁白', `（已读取存档：${slot.name}）`, 'narration');
+  hideChoices();
+  // 重演最后一条 AI 回复
   const recent = history.slice(-6);
   for (const m of recent) {
     if (m.role === 'assistant') {
-      // 只渲染最后一条的选项
       const isLast = m === recent[recent.length-1];
       const { lines, choices } = parseAIResponse(m.content);
-      lines.forEach(l => addLine(l.who, l.text, l.type));
-      if (isLast && choices.length) showChoices(choices);
+      lines.forEach(l => allLines.push({ who: l.who, text: l.text }));
+      if (isLast) {
+        // 只显示最后一条
+        if (lines.length) setDialog(lines[lines.length-1].who, lines[lines.length-1].text, lines[lines.length-1].type);
+        if (choices.length) showChoices(choices);
+      }
     }
   }
 }
 
 /* ========= 存档面板 ========= */
-const saveBtn = document.getElementById('saveBtn');
 const savePanel = document.getElementById('savePanel');
 const saveList = document.getElementById('saveList');
 const saveClose = document.getElementById('saveClose');
 const saveNow = document.getElementById('saveNow');
 const saveMeta = document.getElementById('saveMeta');
+const saveBtn = document.getElementById('saveBtn');
 
 async function refreshSaveList() {
   const slots = await loadSlots();
@@ -872,18 +1070,18 @@ async function refreshSaveList() {
   if (slots.length === 0) {
     saveList.innerHTML = '<div style="color:#ccc;text-align:center;padding:20px;font-size:12px;">还没有存档</div>';
   }
-  slots.forEach((s, i) => {
+  slots.forEach((s) => {
     const el = document.createElement('div');
     el.className = 'save-slot';
     const date = s.created_at ? new Date(s.created_at).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
     el.innerHTML = `
       <div class="slot-info">
-        <div class="slot-name">${escapeHtml(s.name||('档'+(i+1)))}</div>
+        <div class="slot-name">${escapeHtml(s.name||'未命名')}</div>
         <div class="slot-meta">${escapeHtml(s.scene||'')} · ${escapeHtml(s.chapter||'')} · ${date}</div>
       </div>
       <div class="slot-actions">
-        <button class="slot-act load" data-id="${s.id}">读</button>
-        <button class="slot-act del" data-id="${s.id}">删</button>
+        <button class="slot-act load">读</button>
+        <button class="slot-act del">删</button>
       </div>`;
     el.querySelector('.load').addEventListener('click', async () => {
       const full = await loadSlotById(s.id);
@@ -891,20 +1089,14 @@ async function refreshSaveList() {
       savePanel.classList.remove('open');
     });
     el.querySelector('.del').addEventListener('click', async () => {
-      if (confirm('删除这个存档？')) {
-        await deleteSlot(s.id);
-        refreshSaveList();
-      }
+      if (confirm('删除这个存档？')) { await deleteSlot(s.id); refreshSaveList(); }
     });
     saveList.appendChild(el);
   });
   saveMeta.textContent = (cloudOK ? '☁️ 已同步' : '⚠️ 仅本地') + ' · ' + slots.length + '/' + MAX_SLOTS;
 }
 
-saveBtn.addEventListener('click', () => {
-  refreshSaveList();
-  savePanel.classList.toggle('open');
-});
+saveBtn.addEventListener('click', () => { refreshSaveList(); savePanel.classList.toggle('open'); });
 saveClose.addEventListener('click', () => savePanel.classList.remove('open'));
 saveNow.addEventListener('click', async () => {
   const name = prompt('存档名称：', '档' + (new Date().getMonth()+1) + '/' + new Date().getDate());
@@ -912,13 +1104,6 @@ saveNow.addEventListener('click', async () => {
   await saveSlot(name);
   refreshSaveList();
 });
-
-/* ========= 自动存档 ========= */
-let autoSaveCounter = 0;
-async function autoSave() {
-  if (history.length === 0) return;
-  await saveSlot('自动·' + new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}));
-}
 
 /* ========= 记忆码 ========= */
 const codeModal = document.getElementById('codeModal');
@@ -930,10 +1115,9 @@ function showCodeModal() {
   codeInput.value = userCode;
   setTimeout(() => codeInput.focus(), 100);
 }
-
 codeSave.addEventListener('click', async () => {
   const code = codeInput.value.trim();
-  if (code.length < 3) { alert('至少 3 位'); return; }
+  if (code.length < 2) { alert('至少 2 位'); return; }
   userCode = code;
   localStorage.setItem(CODE_KEY, userCode);
   codeModal.classList.add('hidden');
@@ -944,37 +1128,36 @@ codeSave.addEventListener('click', async () => {
 async function initStory() {
   loadHistory();
   if (history.length === 0) {
-    // 全新开始
-    const opening = `【开场·外界影响】一个少年的马车在午后停在了教堂门口。`;
-    history.push({ role: 'user', content: `【外界影响】${opening}` });
-    const typing = addTyping('剧情');
+    setDialog('旁白', '（马车在午后的石路上吱呀作响。一个少年的旅程在此刻抵达终点。）', 'narration');
+    showTyping('剧情');
     try {
-      const text = await callAI(opening);
-      typing.remove();
-      renderAIResponse(text);
+      const text = await callAI('【开场·外界影响】一个少年的马车在午后停在了教堂门口。');
+      await renderAIResponse(text);
     } catch(e) {
-      typing.remove();
-      addLine('旁白', '（开场卡住了，刷新重试。）', 'narration');
+      setDialog('旁白', '（开场卡住了，刷新重试。）', 'narration');
     }
   } else {
     // 接着上次的
     const recent = history.slice(-6);
     for (const m of recent) {
       if (m.role === 'assistant') {
-        const isLast = m === recent[recent.length-1];
         const { lines, choices } = parseAIResponse(m.content);
-        lines.forEach(l => addLine(l.who, l.text, l.type));
-        if (isLast && choices.length) showChoices(choices);
+        lines.forEach(l => allLines.push({ who: l.who, text: l.text }));
+        if (choices.length) showChoices(choices);
       }
+    }
+    // 显示最后一条
+    const lastAssistant = [...history].reverse().find(m => m.role === 'assistant');
+    if (lastAssistant) {
+      const { lines } = parseAIResponse(lastAssistant.content);
+      if (lines.length) setDialog(lines[lines.length-1].who, lines[lines.length-1].text, lines[lines.length-1].type);
     }
   }
 }
 
 (async function init() {
-  if (userCode) {
-    await initStory();
-  } else {
-    showCodeModal();
-  }
+  if (userCode) await initStory();
+  else showCodeModal();
 })();
+
 </script>
