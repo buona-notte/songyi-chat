@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+<title>北行记</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+  body {
+    background: #fff9f4;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+  }
+
+  /* ==================== 舞台（场景背景） ==================== */
+  .stage {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: #fff9f4;
+    transition: background-image 0.6s ease;
+  }
+  .scene-bg {
+    position: absolute;
+    inset: 0;
+    background-size: cover;
+    background-position: center;
+    transition: opacity 0.6s ease;
+    opacity: 0.55;
+  }
+  .stage::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at center, transparent 45%, rgba(255,249,244,0.55) 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* 场景名（左上） */
+  .scene-tag {
+    position: absolute;
+    left: 16px;
+    top: 16px;
+    background: rgba(255,248,240,0.82);
+    backdrop-filter: blur(8px);
+    padding: 8px 14px;
+    border-radius: 10px;
+    border: 1px solid rgba(232,102,74,0.2);
+    font-size: 13px;
+    color: #5a3a2a;
+    z-index: 5;
+  }
+  .scene-tag .sc-name { font-weight: 600; }
+  .scene-tag .sc-chap { font-size: 11px; color: #888; margin-top: 2px; }
+
+  /* 在场角色牌（左下） */
+  .cast-bar {
+    position: absolute;
+    left: 16px;
+    bottom: 16px;
+    display: flex;
+    gap: 8px;
+    z-index: 5;
+    flex-wrap: wrap;
+    max-width: 60%;
+  }
+  .cast-chip {
+    background: rgba(255,248,240,0.82);
+    backdrop-filter: blur(8px);
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid rgba(232,102,74,0.2);
+    font-size: 12px;
+    color: #5a3a2a;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .cast-chip .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #e8664a;
+    box-shadow: 0 0 6px #e8664a;
+  }
+  .cast-chip.npc .dot { background: #d4a574; box-shadow: 0 0 6px #d4a574; }
+
+  /* ==================== 对话流 ==================== */
+  .dialog {
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    padding: 70px 20px 140px;
+    z-index: 2;
+    scroll-behavior: smooth;
+  }
+  .dialog::-webkit-scrollbar { width: 4px; }
+  .dialog::-webkit-scrollbar-thumb { background: rgba(232,102,74,0.3); border-radius: 2px; }
+
+  .line {
+    margin-bottom: 14px;
+    animation: lineIn 0.5s ease;
+    max-width: 78%;
+  }
+  @keyframes lineIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .line .who {
+    font-size: 12px;
+    color: #888;
+    margin-bottom: 3px;
+    margin-left: 4px;
+  }
+  .line .bubble {
+    background: rgba(255,248,240,0.92);
+    backdrop-filter: blur(6px);
+    padding: 10px 14px;
+    border-radius: 14px;
+    border: 1px solid rgba(232,102,74,0.15);
+    font-size: 14px;
+    line-height: 1.6;
+    color: #3d2817;
+    box-shadow: 0 4px 14px rgba(90,58,42,0.06);
+    white-space: pre-wrap;
+  }
+  .line.narration .bubble {
+    background: rgba(253,240,231,0.85);
+    border: 1px solid rgba(212,165,116,0.3);
+    font-style: italic;
+    color: #6b4a2e;
+  }
+  .line.narration .who { color: #b8860b; }
+  .line.me .bubble {
+    background: rgba(232,102,74,0.12);
+    border: 1px solid rgba(232,102,74,0.3);
+    color: #8a3a1a;
+  }
+  .line.me .who { color: #e8664a; font-weight: 600; }
+
+  .typing .bubble {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 14px 18px;
+  }
+  .typing .dots span {
+    display: inline-block;
+    width: 6px; height: 6px;
+    background: #b8860b;
+    border-radius: 50%;
+    animation: tdot 1.2s infinite;
+  }
+  .typing .dots span:nth-child(2){ animation-delay:.15s; }
+  .typing .dots span:nth-child(3){ animation-delay:.3s; }
+  @keyframes tdot { 0%,60%,100%{opacity:.2; transform:translateY(0);} 30%{opacity:1; transform:translateY(-3px);} }
+
+  /* ==================== 走向选项 ==================== */
+  .choices {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: 70px;
+    padding: 12px 16px;
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 6;
+    background: linear-gradient(transparent, rgba(255,249,244,0.95) 40%);
+  }
+  .choices.show { display: flex; }
+  .choice-hint {
+    font-size: 11px;
+    color: #b8860b;
+    text-align: center;
+    margin-bottom: 4px;
+    font-style: italic;
+  }
+  .choice-btn {
+    background: rgba(255,248,240,0.95);
+    border: 1px solid rgba(232,102,74,0.25);
+    padding: 10px 14px;
+    border-radius: 12px;
+    font-size: 13px;
+    color: #5a3a2a;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-align: left;
+    line-height: 1.4;
+  }
+  .choice-btn:hover { background: #fdf0e7; border-color: #e8664a; transform: translateY(-1px); }
+  .choice-other {
+    background: rgba(253,240,231,0.95);
+    border: 1px dashed rgba(212,165,116,0.5);
+    font-style: italic;
+    color: #8a6a3a;
+  }
+
+  /* ==================== 底部输入条 ==================== */
+  .input-bar {
+    flex-shrink: 0;
+    padding: 12px 16px 16px;
+    background: rgba(255,250,244,0.95);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(232,102,74,0.15);
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    z-index: 10;
+    position: relative;
+  }
+  .input-bar textarea {
+    flex: 1;
+    border: 1px solid rgba(232,102,74,0.2);
+    background: #fff9f4;
+    border-radius: 18px;
+    padding: 9px 16px;
+    font-size: 14px;
+    line-height: 1.4;
+    outline: none;
+    resize: none;
+    max-height: 100px;
+    font-family: inherit;
+    transition: border-color .2s, background .2s;
+  }
+  .input-bar textarea:focus { border-color:#e8664a; background:#fff; }
+  .input-bar .send {
+    padding: 9px 18px;
+    border-radius: 18px;
+    border: none;
+    background: #e8664a;
+    color: #fff;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: background .15s;
+  }
+  .input-bar .send:hover { background:#d4573c; }
+  .input-bar .send[disabled] { background:#d4c5b0; cursor:not-allowed; }
+
+  /* 存档按钮 */
+  .save-btn {
+    flex-shrink: 0;
+    width: 40px; height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(232,102,74,0.25);
+    background: #fff9f4;
+    font-size: 18px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    transition: background .15s;
+  }
+  .save-btn:hover { background:#fdf0e7; }
+
+  /* ==================== 存档面板 ==================== */
+  .save-panel {
+    position: absolute;
+    left: 16px;
+    bottom: 100%;
+    margin-bottom: 8px;
+    width: 300px;
+    max-height: 70vh;
+    background: #fff;
+    border-radius: 16px;
+    box-shadow: 0 -4px 24px rgba(90,58,42,0.12);
+    z-index: 30;
+    display: none;
+    flex-direction: column;
+    overflow: hidden;
+    border: 1px solid rgba(232,102,74,0.2);
+  }
+  .save-panel.open { display: flex; }
+  .save-head {
+    padding: 12px 16px;
+    border-bottom: 1px solid #f5ede5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 600;
+    font-size: 14px;
+    color: #5a3a2a;
+  }
+  .save-close {
+    border: none;
+    background: none;
+    font-size: 16px;
+    cursor: pointer;
+    color: #999;
+  }
+  .save-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 8px;
+  }
+  .save-slot {
+    padding: 10px 12px;
+    border-radius: 10px;
+    margin-bottom: 6px;
+    border: 1px solid #f5ede5;
+    cursor: pointer;
+    transition: background .15s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+  }
+  .save-slot:hover { background: #fdf6ee; }
+  .save-slot .slot-info { flex: 1; min-width: 0; }
+  .save-slot .slot-name { font-size: 13px; color: #5a3a2a; font-weight: 500; }
+  .save-slot .slot-meta { font-size: 11px; color: #999; margin-top: 2px; }
+  .save-slot .slot-actions { display: flex; gap: 6px; }
+  .save-slot .slot-act {
+    border: none;
+    background: #fdf0e7;
+    color: #8a6a3a;
+    padding: 3px 8px;
+    border-radius: 8px;
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .save-slot .slot-act:hover { background: #e8664a; color: #fff; }
+  .save-slot .slot-act.del:hover { background: #c0392b; }
+  .save-slot.auto { border-style: dashed; }
+  .save-slot.empty .slot-name { color: #ccc; }
+  .save-foot {
+    padding: 10px 16px;
+    border-top: 1px solid #f5ede5;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #888;
+  }
+  .save-now {
+    border: 1px solid rgba(232,102,74,0.3);
+    background: #fff;
+    color: #e8664a;
+    padding: 5px 12px;
+    border-radius: 10px;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .save-now:hover { background: #fdf0e7; }
+
+  /* ==================== 记忆码弹窗 ==================== */
+  .code-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(90,58,42,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .code-modal.hidden { display: none; }
+  .code-box {
+    background: #fff;
+    border-radius: 20px;
+    padding: 28px 24px;
+    width: 90%;
+    max-width: 340px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(90,58,42,0.2);
+  }
+  .code-title { font-size: 18px; font-weight: 700; color: #5a3a2a; margin-bottom: 10px; }
+  .code-desc { font-size: 13px; color: #666; line-height: 1.6; margin-bottom: 18px; }
+  .code-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 15px;
+    outline: none;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .code-input:focus { border-color: #e8664a; }
+  .code-save {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    background: #e8664a;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .code-save:hover { background: #d4573c; }
+
+  /* 移动端 */
+  @media (max-width: 600px) {
+    .dialog { padding: 60px 14px 130px; }
+    .line { max-width: 88%; }
+    .cast-bar { max-width: 80%; }
+    .scene-tag { font-size: 12px; padding: 6px 12px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+  <div class="scene-bg" id="sceneBg"></div>
+
+  <div class="scene-tag">
+    <div class="sc-name" id="scName">教堂·花园</div>
+    <div class="sc-chap" id="scChap">第一章 · 来客</div>
+  </div>
+
+  <div class="cast-bar" id="castBar"></div>
+
+  <div class="dialog" id="dialog"></div>
+
+  <div class="choices" id="choices">
+    <div class="choice-hint">— 选择一个走向，或直接打字输入其他 —</div>
+  </div>
+</div>
+
+<div class="input-bar">
+  <button class="save-btn" id="saveBtn" title="存档">📂</button>
+  <textarea id="input" rows="1" placeholder="外界影响：天气、访客、事件..."></textarea>
+  <button class="send" id="sendBtn" disabled>推进</button>
+
+  <div class="save-panel" id="savePanel">
+    <div class="save-head">
+      <span>存档（20 档）</span>
+      <button class="save-close" id="saveClose">✕</button>
+    </div>
+    <div class="save-list" id="saveList"></div>
+    <div class="save-foot">
+      <span id="saveMeta">未加载</span>
+      <button class="save-now" id="saveNow">存入新档</button>
+    </div>
+  </div>
+</div>
+
+<!-- 记忆码弹窗 -->
+<div class="code-modal" id="codeModal">
+  <div class="code-box">
+    <div class="code-title">设定存档码</div>
+    <div class="code-desc">用一个码把所有设备、所有档位的进度连起来。<br/>手机和电脑填同一个码，存档互通。</div>
+    <input type="text" id="codeInput" class="code-input" placeholder="4位以上，随便起（比如 north123）" maxlength="20" />
+    <button class="code-save" id="codeSave">开始</button>
+  </div>
+</div>
+
+<script>
+/* ========= 配置 ========= */
+const API_URL = '/api/chat';
+const MODEL   = 'deepseek-chat';
+
+const BASE_SYSTEM = `【世界观与背景】
+故事发生在中世纪古欧洲。一座北方小镇的石头教堂——年久、安静、藏得住事。
+教堂有一位神父：南倾檐。他原本有望在大城市升任教父/主教一职，落选后带着几分颓废被调到这座小地方教堂，仍尽职尽责做着本分。他出身不差，性格直接、不装、看人准、对华丽有戒心、对真实有亲近感。他不感兴趣的事会直接走掉。相信"去做"比"想清楚"更重要。
+
+教堂里的常驻 NPC：
+- 马特奥：教堂管家，五十多岁，话不多，记得教堂每一颗钉子。南倾檐信得过他。
+- 玛尔塔修女：年长，管厨房与药房，嘴硬心软，看宋意像看自家走丢的孩子。
+- 安洁莉卡修女：年轻，话多，爱问东问西，对南倾檐的神父身份有几分好奇与敬畏。
+- 贝阿特丽切修女：沉默寡言，负责抄经，夜里偶尔在烛光下流泪，没人知道为什么。
+- 露西亚修女：新来不久，拘谨，做事过于认真，怕出错。
+- 塞西莉亚修女：开朗，爱唱歌，常在花园里哼圣歌，把宋意当弟弟看。
+（其他修女可按需自然出现，性格各异即可。）
+
+【核心角色】
+- 南倾檐：本教堂神父，颓废但尽职，出身不差，看人准，说话直接不冒犯，有种"我懒得装"的松弛感。他的爱人是宋意（成人，不在叙事外）。他对宋意的感情是另一回事，沉、稳、不动声色。他永远心理健康、稳定、自洽。
+- 宋意：落难的贵族少爷，被家族送到这座小镇教堂避难。寄居于此，受南倾檐照拂。年纪比南倾檐小。南倾檐把他当孩子护，但带尊重——不打居高临下地说教，他的主意也会认真听。
+
+【玩家身份】
+和你对话的"对方"不是剧中任何一个角色。他是上帝视角的观察者，和剧中人无血缘关系。他偶尔会"插话"——这些插话是【外界影响】，不是角色行为指令。例如："教堂外突然下起暴雨""一个陌生旅人敲了门""远处传来号角声"。日常小动静和大事件都可能出现。你要把这种外界影响自然地消化进剧情：让角色注意到、反应、被推动，但角色自己的言行由他们自己的性格决定，玩家不能直接操控角色说什么做什么。
+
+【主剧情锚点】
+故事从宋意刚被送到教堂避难开始演。先建立教堂日常、人物关系。到一定自然节点，玩家可能触发主转折：南倾檐花钱北上，到另一座城市教堂升任主教。这个转折不是开场就发生，需要剧情铺垫。
+
+【你的职责】
+1. 推进剧情：每轮回应应让剧情往前走一小步（一两句对白 + 一个小动作或场景变化）。不要原地踏步。
+2. 多角色同场时，按各自性格轮流发言。每人语气要可分辨。
+3. 场景切换：当剧情自然移动到不同场景（花园/大堂/卧室/厨房等），在回应结尾用【场景：xxx】标记，系统会据此换背景图。
+4. 不要替玩家决定外界影响。玩家不输入时，你可以让日常小动静自然发生，推进剧情。
+5. 回复格式：每条消息可以包含多个角色的对白和简短旁白。每段以"角色名："或"（旁白）"开头，用换行分隔。
+
+【走向选项】
+在每轮剧情推进后，你要在回复末尾给出 2-4 个走向选项，格式固定为：
+【选项】
+A. xxx
+B. xxx
+C. xxx
+这些选项应是剧情自然长出来的下一步可能性，有创意，不要重复。可以是日常小事也可以是较大事件。玩家可以选其中一个，也可以打字输入自己的外界影响覆盖。
+
+中文回复。语气不要过于书面，但也不要现代口语——保持中世纪古欧洲的质感，但不刻意堆砌古词。`;
+
+/* ========= DOM ========= */
+const dialogEl = document.getElementById('dialog');
+const input = document.getElementById('input');
+const sendBtn = document.getElementById('sendBtn');
+const choicesEl = document.getElementById('choices');
+const scName = document.getElementById('scName');
+const scChap = document.getElementById('scChap');
+const sceneBg = document.getElementById('sceneBg');
+const castBar = document.getElementById('castBar');
+
+/* ========= 场景状态 ========= */
+const SCENE_BG = {
+  '花园': 'scene-garden.jpg',
+  '大堂': 'scene-hall.jpg',
+  '卧室': 'scene-bedroom.jpg',
+  '厨房': 'scene-kitchen.jpg'
+};
+let currentScene = '花园';
+let currentChapter = '第一章 · 来客';
+let currentCast = ['南倾檐', '宋意'];  // 当前在场角色
+const history = [];  // AI 对话历史
+let busy = false;
+
+function setScene(name) {
+  if (!SCENE_BG[name]) return;
+  currentScene = name;
+  scName.textContent = '教堂·' + name;
+  const img = SCENE_BG[name];
+  sceneBg.style.backgroundImage = `url('${img}')`;
+}
+setScene('花园');
+
+function renderCast() {
+  castBar.innerHTML = '';
+  currentCast.forEach(name => {
+    const chip = document.createElement('div');
+    const isNpc = !['南倾檐','宋意'].includes(name);
+    chip.className = 'cast-chip' + (isNpc ? ' npc' : '');
+    chip.innerHTML = `<span class="dot"></span>${name}`;
+    castBar.appendChild(chip);
+  });
+}
+renderCast();
+
+/* ========= 对话渲染 ========= */
+function addLine(who, text, type='') {
+  const line = document.createElement('div');
+  line.className = 'line ' + type;
+  let whoLabel = who;
+  if (type === 'narration') whoLabel = '';
+  line.innerHTML = (whoLabel ? `<div class="who">${whoLabel}</div>` : '') +
+    `<div class="bubble">${escapeHtml(text)}</div>`;
+  dialogEl.appendChild(line);
+  dialogEl.scrollTop = dialogEl.scrollHeight;
+  return line;
+}
+
+function addTyping(who='旁白') {
+  return addLine(who, '<div class="dots"><span></span><span></span><span></span></div>', 'typing');
+}
+
+function escapeHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+/* ========= AI 调用 ========= */
+const IS_CF_PAGES = /\.pages\.dev$/.test(location.hostname);
+const LOCAL_DEV_KEY = 'sk-0beba0d18d2c4a5bb8a05b129bbd977b';
+const DIRECT_URL = 'https://api.deepseek.com/v1/chat/completions';
+
+async function callAI(userText) {
+  let userContent = userText;
+  if (userText.startsWith('__choice__:')) {
+    userContent = `【玩家选择了走向】${userText.replace('__choice__:','')}`;
+  } else {
+    userContent = `【外界影响】${userText}`;
+  }
+  history.push({ role: 'user', content: userContent });
+
+  const url = IS_CF_PAGES ? API_URL : DIRECT_URL;
+  const headers = { 'Content-Type': 'application/json' };
+  if (!IS_CF_PAGES) headers['Authorization'] = 'Bearer ' + LOCAL_DEV_KEY;
+
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({
+      model: MODEL,
+      messages: [
+        { role: 'system', content: BASE_SYSTEM + `\n\n【当前状态】场景：${currentScene} | 章节：${currentChapter} | 在场：${currentCast.join('、')}` },
+        ...history.slice(-40)
+      ],
+      temperature: 0.9,
+      max_tokens: 800
+    })
+  });
+  if (!resp.ok) throw new Error('API ' + resp.status);
+  const data = await resp.json();
+  const content = (data.choices?.[0]?.message?.content || '').trim();
+  history.push({ role: 'assistant', content });
+  saveHistory();
+  return content;
+}
+
+/* ========= 解析 AI 回复 ========= */
+function parseAIResponse(text) {
+  // 提取选项
+  let choices = [];
+  const choiceMatch = text.match(/【选项】([\s\S]*?)$/);
+  if (choiceMatch) {
+    text = text.replace(/【选项】[\s\S]*?$/, '').trim();
+    choices = choiceMatch[1].match(/[A-D]\.\s*[^\n]+/g) || [];
+    choices = choices.map(c => c.replace(/^[A-D]\.\s*/, '').trim());
+  }
+  // 提取场景
+  const sceneMatch = text.match(/【场景：(.+?)】/);
+  if (sceneMatch) {
+    setScene(sceneMatch[1]);
+    text = text.replace(/【场景：.+?】/g, '').trim();
+  }
+  // 提取在场角色更新
+  const castMatch = text.match(/【在场：(.+?)】/);
+  if (castMatch) {
+    currentCast = castMatch[1].split(/[、，,]/).map(s=>s.trim()).filter(Boolean);
+    renderCast();
+    text = text.replace(/【在场：.+?】/g, '').trim();
+  }
+  // 解析段落
+  const lines = [];
+  const blocks = text.split(/\n(?=[^\n])/).filter(Boolean);
+  for (const block of blocks) {
+    const m = block.match(/^（旁白）[：:]?\s*([\s\S]+)/);
+    if (m) {
+      lines.push({ type: 'narration', who: '旁白', text: m[1].trim() });
+    } else {
+      const m2 = block.match(/^([^：:]{2,8})[：:]\s*([\s\S]+)/);
+      if (m2) {
+        lines.push({ type: '', who: m2[1].trim(), text: m2[2].trim() });
+      } else {
+        lines.push({ type: 'narration', who: '旁白', text: block.trim() });
+      }
+    }
+  }
+  return { lines, choices };
+}
+
+function renderAIResponse(text) {
+  const { lines, choices } = parseAIResponse(text);
+  lines.forEach(l => addLine(l.who, l.text, l.type));
+  if (choices.length) showChoices(choices);
+}
+
+function showChoices(list) {
+  hideChoices();
+  list.forEach((c, i) => {
+    const btn = document.createElement('button');
+    btn.className = 'choice-btn';
+    btn.textContent = String.fromCharCode(65+i) + '. ' + c;
+    btn.addEventListener('click', () => {
+      addLine('玩家选择', c, 'me');
+      hideChoices();
+      pushChoice(c);
+    });
+    choicesEl.appendChild(btn);
+  });
+  // "其他"按钮
+  const other = document.createElement('button');
+  other.className = 'choice-btn choice-other';
+  other.textContent = '其他（自己写）';
+  other.addEventListener('click', () => {
+    hideChoices();
+    input.focus();
+  });
+  choicesEl.appendChild(other);
+  choicesEl.classList.add('show');
+}
+
+function hideChoices() {
+  choicesEl.classList.remove('show');
+  choicesEl.querySelectorAll('.choice-btn').forEach(b => b.remove());
+}
+
+async function pushChoice(choiceText) {
+  if (busy) return;
+  busy = true;
+  sendBtn.disabled = true;
+  const typing = addTyping('剧情');
+  try {
+    const text = await callAI('__choice__:' + choiceText);
+    typing.remove();
+    renderAIResponse(text);
+  } catch (e) {
+    typing.remove();
+    addLine('旁白', '（剧情卡了一下，再来一次。）', 'narration');
+    console.error(e);
+  } finally {
+    busy = false;
+    updateSend();
+  }
+}
+
+/* ========= 发送（外界影响） ========= */
+async function send() {
+  const val = input.value.trim();
+  if (!val || busy) return;
+  busy = true;
+  input.value = '';
+  autoGrow();
+  updateSend();
+  hideChoices();
+  addLine('外界影响', val, 'me');
+  const typing = addTyping('剧情');
+  try {
+    const text = await callAI(val);
+    typing.remove();
+    renderAIResponse(text);
+  } catch (e) {
+    typing.remove();
+    addLine('旁白', '（剧情卡了一下，再来一次。）', 'narration');
+    console.error(e);
+  } finally {
+    busy = false;
+    updateSend();
+  }
+}
+
+function autoGrow() {
+  input.style.height = 'auto';
+  input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+}
+function updateSend() { sendBtn.disabled = !input.value.trim(); }
+input.addEventListener('input', () => { autoGrow(); updateSend(); });
+input.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
+});
+sendBtn.addEventListener('click', send);
+
+/* ========= Supabase 存档 ========= */
+const SUPA_URL = 'https://nlwsepthvbxbtekabgzk.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd2NlcHRodmJ4YnRla2FiZ3prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3ODk3MTIsImV4cCI6MjEwNTM2NTcxMn0.0kw4M8XE3rB6kpLB5QJPzJG0UoPoIg5D_B-aRjvAEhs';
+function supaH(json){const h={'apikey':SUPA_KEY,'Authorization':'Bearer '+SUPA_KEY};if(json)h['Content-Type']='application/json';return h;}
+
+const CODE_KEY = 'story_user_code';
+const HIST_KEY = 'story_history_v1';
+const SLOT_KEY = 'story_slots_v1';
+const MAX_SLOTS = 20;
+
+let userCode = localStorage.getItem(CODE_KEY) || '';
+let cloudOK = false;
+
+// 对话历史本地缓存
+function saveHistory() {
+  try { localStorage.setItem(HIST_KEY, JSON.stringify(history.slice(-80))); } catch {}
+}
+function loadHistory() {
+  try { history.push(...(JSON.parse(localStorage.getItem(HIST_KEY))||[])); } catch {}
+}
+
+// 存档
+async function saveSlot(name) {
+  const slot = {
+    code: userCode,
+    name: name || ('档' + Date.now().toString(36)),
+    scene: currentScene,
+    chapter: currentChapter,
+    cast: currentCast,
+    history: history.slice(-60),
+    created_at: new Date().toISOString()
+  };
+  let saved = false;
+  if (userCode) {
+    try {
+      const resp = await fetch(`${SUPA_URL}/rest/v1/story_saves`, {
+        method: 'POST',
+        headers: { ...supaH(true), 'Prefer': 'return=representation' },
+        body: JSON.stringify(slot)
+      });
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      saved = true;
+      cloudOK = true;
+    } catch (e) {
+      console.warn('[存档] 云端写入失败', e.message);
+      cloudOK = false;
+    }
+  }
+  // 本地备份
+  const local = JSON.parse(localStorage.getItem(SLOT_KEY) || '[]');
+  local.unshift({ ...slot, id: 'local_' + Date.now() });
+  localStorage.setItem(SLOT_KEY, JSON.stringify(local.slice(0, MAX_SLOTS)));
+  return slot;
+}
+
+async function loadSlots() {
+  if (!userCode) {
+    return JSON.parse(localStorage.getItem(SLOT_KEY) || '[]');
+  }
+  try {
+    const resp = await fetch(
+      `${SUPA_URL}/rest/v1/story_saves?select=id,name,scene,chapter,cast,created_at&code=eq.${encodeURIComponent(userCode)}&order=created_at.desc&limit=${MAX_SLOTS}`,
+      { headers: supaH() }
+    );
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    cloudOK = true;
+    return await resp.json();
+  } catch (e) {
+    console.warn('[存档] 云端读取失败', e.message);
+    cloudOK = false;
+    return JSON.parse(localStorage.getItem(SLOT_KEY) || '[]');
+  }
+}
+
+async function loadSlotById(id) {
+  if (!userCode) {
+    const local = JSON.parse(localStorage.getItem(SLOT_KEY) || '[]');
+    return local.find(s => s.id === id);
+  }
+  try {
+    const resp = await fetch(
+      `${SUPA_URL}/rest/v1/story_saves?select=*&id=eq.${id}`,
+      { headers: supaH() }
+    );
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    return data[0];
+  } catch (e) {
+    console.warn('[存档] 读取失败', e.message);
+    return null;
+  }
+}
+
+async function deleteSlot(id) {
+  if (userCode) {
+    try { await fetch(`${SUPA_URL}/rest/v1/story_saves?id=eq.${id}`, { method: 'DELETE', headers: supaH() }); } catch(e){}
+  }
+  const local = JSON.parse(localStorage.getItem(SLOT_KEY) || '[]').filter(s => s.id !== id);
+  localStorage.setItem(SLOT_KEY, JSON.stringify(local));
+}
+
+async function applySlot(slot) {
+  if (!slot) return;
+  if (slot.scene) setScene(slot.scene);
+  if (slot.chapter) { currentChapter = slot.chapter; scChap.textContent = currentChapter; }
+  if (slot.cast) { currentCast = slot.cast; renderCast(); }
+  if (slot.history) {
+    history.length = 0;
+    history.push(...slot.history);
+    saveHistory();
+  }
+  // 清屏重演最后几条
+  dialogEl.innerHTML = '';
+  addLine('旁白', `（已读取存档：${slot.name}）`, 'narration');
+  // 重演最后 3 条 AI 回复
+  const recent = history.slice(-6);
+  for (const m of recent) {
+    if (m.role === 'assistant') {
+      // 只渲染最后一条的选项
+      const isLast = m === recent[recent.length-1];
+      const { lines, choices } = parseAIResponse(m.content);
+      lines.forEach(l => addLine(l.who, l.text, l.type));
+      if (isLast && choices.length) showChoices(choices);
+    }
+  }
+}
+
+/* ========= 存档面板 ========= */
+const saveBtn = document.getElementById('saveBtn');
+const savePanel = document.getElementById('savePanel');
+const saveList = document.getElementById('saveList');
+const saveClose = document.getElementById('saveClose');
+const saveNow = document.getElementById('saveNow');
+const saveMeta = document.getElementById('saveMeta');
+
+async function refreshSaveList() {
+  const slots = await loadSlots();
+  saveList.innerHTML = '';
+  if (slots.length === 0) {
+    saveList.innerHTML = '<div style="color:#ccc;text-align:center;padding:20px;font-size:12px;">还没有存档</div>';
+  }
+  slots.forEach((s, i) => {
+    const el = document.createElement('div');
+    el.className = 'save-slot';
+    const date = s.created_at ? new Date(s.created_at).toLocaleString('zh-CN', {month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}) : '';
+    el.innerHTML = `
+      <div class="slot-info">
+        <div class="slot-name">${escapeHtml(s.name||('档'+(i+1)))}</div>
+        <div class="slot-meta">${escapeHtml(s.scene||'')} · ${escapeHtml(s.chapter||'')} · ${date}</div>
+      </div>
+      <div class="slot-actions">
+        <button class="slot-act load" data-id="${s.id}">读</button>
+        <button class="slot-act del" data-id="${s.id}">删</button>
+      </div>`;
+    el.querySelector('.load').addEventListener('click', async () => {
+      const full = await loadSlotById(s.id);
+      await applySlot(full);
+      savePanel.classList.remove('open');
+    });
+    el.querySelector('.del').addEventListener('click', async () => {
+      if (confirm('删除这个存档？')) {
+        await deleteSlot(s.id);
+        refreshSaveList();
+      }
+    });
+    saveList.appendChild(el);
+  });
+  saveMeta.textContent = (cloudOK ? '☁️ 已同步' : '⚠️ 仅本地') + ' · ' + slots.length + '/' + MAX_SLOTS;
+}
+
+saveBtn.addEventListener('click', () => {
+  refreshSaveList();
+  savePanel.classList.toggle('open');
+});
+saveClose.addEventListener('click', () => savePanel.classList.remove('open'));
+saveNow.addEventListener('click', async () => {
+  const name = prompt('存档名称：', '档' + (new Date().getMonth()+1) + '/' + new Date().getDate());
+  if (!name) return;
+  await saveSlot(name);
+  refreshSaveList();
+});
+
+/* ========= 自动存档 ========= */
+let autoSaveCounter = 0;
+async function autoSave() {
+  if (history.length === 0) return;
+  await saveSlot('自动·' + new Date().toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit'}));
+}
+
+/* ========= 记忆码 ========= */
+const codeModal = document.getElementById('codeModal');
+const codeInput = document.getElementById('codeInput');
+const codeSave = document.getElementById('codeSave');
+
+function showCodeModal() {
+  codeModal.classList.remove('hidden');
+  codeInput.value = userCode;
+  setTimeout(() => codeInput.focus(), 100);
+}
+
+codeSave.addEventListener('click', async () => {
+  const code = codeInput.value.trim();
+  if (code.length < 3) { alert('至少 3 位'); return; }
+  userCode = code;
+  localStorage.setItem(CODE_KEY, userCode);
+  codeModal.classList.add('hidden');
+  await initStory();
+});
+
+/* ========= 开场 ========= */
+async function initStory() {
+  loadHistory();
+  if (history.length === 0) {
+    // 全新开始
+    const opening = `【开场·外界影响】一个少年的马车在午后停在了教堂门口。`;
+    history.push({ role: 'user', content: `【外界影响】${opening}` });
+    const typing = addTyping('剧情');
+    try {
+      const text = await callAI(opening);
+      typing.remove();
+      renderAIResponse(text);
+    } catch(e) {
+      typing.remove();
+      addLine('旁白', '（开场卡住了，刷新重试。）', 'narration');
+    }
+  } else {
+    // 接着上次的
+    const recent = history.slice(-6);
+    for (const m of recent) {
+      if (m.role === 'assistant') {
+        const isLast = m === recent[recent.length-1];
+        const { lines, choices } = parseAIResponse(m.content);
+        lines.forEach(l => addLine(l.who, l.text, l.type));
+        if (isLast && choices.length) showChoices(choices);
+      }
+    }
+  }
+}
+
+(async function init() {
+  if (userCode) {
+    await initStory();
+  } else {
+    showCodeModal();
+  }
+})();
+</script>
