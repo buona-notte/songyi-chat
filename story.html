@@ -1081,6 +1081,8 @@ const SLOT_KEY = 'story_slots_v1';
 const MAX_SLOTS = 20;
 
 let userCode = localStorage.getItem(CODE_KEY) || '';
+const ROTATE_ACK = 'story_rotate_ack';
+let rotateAck = localStorage.getItem(ROTATE_ACK) || false;
 let cloudOK = false;
 
 function saveHistory() {
@@ -1302,16 +1304,27 @@ document.addEventListener('touchend', (e) => {
 const rotateHint = document.getElementById('rotateHint');
 const rotateDismiss = document.getElementById('rotateDismiss');
 function checkRotate() {
-  if (window.innerHeight > window.innerWidth && window.innerWidth < 700) {
+  // 已确认过，不再弹
+  if (rotateAck) { rotateHint.classList.remove('show'); return; }
+  // 竖屏且宽度 < 700（手机竖屏）才弹
+  const isPortrait = window.innerHeight > window.innerWidth;
+  if (isPortrait && window.innerWidth < 700) {
     rotateHint.classList.add('show');
   } else {
     rotateHint.classList.remove('show');
   }
 }
-rotateDismiss.addEventListener('click', () => rotateHint.classList.remove('show'));
+rotateDismiss.addEventListener('click', () => {
+  rotateAck = true;
+  localStorage.setItem(ROTATE_ACK, '1');
+  rotateHint.classList.remove('show');
+});
 window.addEventListener('resize', checkRotate);
-window.addEventListener('orientationchange', checkRotate);
-checkRotate();
+window.addEventListener('orientationchange', () => {
+  setTimeout(checkRotate, 200);  // orientationchange 后延迟一下再测
+});
+// 延迟 2 秒检测，等记忆码弹窗处理完
+setTimeout(checkRotate, 2000);
 
 (async function init() {
   if (userCode) await initStory();
