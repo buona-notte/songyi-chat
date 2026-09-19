@@ -525,9 +525,8 @@
   </div>
 </div>
 
-<!-- Supabase -->
+<!-- 长按进度环 -->
 <div class="long-press-ring" id="pressRing"></div>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 /* ========= 配置 ========= */
 // 部署后自动走 Cloudflare Pages Functions 后端代理
@@ -626,11 +625,15 @@ window.addEventListener('touchcancel', endPress);
 stage.addEventListener('contextmenu', e => e.preventDefault());
 
 
+/* ========= Supabase 直连 REST API（无需加载 JS 库，水墨屏也能用） ========= */
 const SUPA_URL = 'https://nlwsepthvbxbtekabgzk.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd3NlcHRodmJ4YnRla2FiZ3prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3ODk3MTIsImV4cCI6MjEwNTM2NTcxMn0.0kw4M8XE3rB6kpLB5QJPzJG0UoPoIg5D_B-aRjvAEhs';
-const supa = (window.supabase && typeof window.supabase.createClient === 'function')
-  ? window.supabase.createClient(SUPA_URL, SUPA_KEY)
-  : null;
+
+function supaHeaders(json) {
+  const h = { 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY };
+  if (json) h['Content-Type'] = 'application/json';
+  return h;
+}
 
 const MEM_CACHE_KEY = 'songyi_memory_cache';
 const HIST_KEY = 'songyi_history_v1';
@@ -639,25 +642,28 @@ const MAX_MEMORIES = 60;
 
 let userCode = localStorage.getItem(CODE_KEY) || '';
 let memoryCache = [];
+let cloudOK = false;
 
 // 从云端拉取记忆（按记忆码）
 async function loadMemory() {
-  if (!userCode || !supa) {
+  if (!userCode) {
     memoryCache = JSON.parse(localStorage.getItem(MEM_CACHE_KEY) || '[]');
     return memoryCache;
   }
   try {
-    const { data, error } = await supabase
-      .from('memories')
-      .select('fact')
-      .eq('code', userCode)
-      .order('created_at', { ascending: true });
-    if (error) throw error;
+    const resp = await fetch(
+      `${SUPA_URL}/rest/v1/memories?select=fact&code=eq.${encodeURIComponent(userCode)}&order=created_at.asc`,
+      { headers: supaHeaders() }
+    );
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
     memoryCache = (data || []).map(r => r.fact);
     localStorage.setItem(MEM_CACHE_KEY, JSON.stringify(memoryCache));
+    cloudOK = true;
     return memoryCache;
   } catch (e) {
     console.warn('[记忆] 云端读取失败，用本地缓存', e.message);
+    cloudOK = false;
     memoryCache = JSON.parse(localStorage.getItem(MEM_CACHE_KEY) || '[]');
     return memoryCache;
   }
@@ -665,33 +671,42 @@ async function loadMemory() {
 
 // 保存新记忆到云端（去重）
 async function saveMemory(newFacts) {
-  if (!userCode || !supa) {
-    memoryCache = [...new Set([...memoryCache, ...newFacts])].slice(0, MAX_MEMORIES);
-    localStorage.setItem(MEM_CACHE_KEY, JSON.stringify(memoryCache));
-    return;
-  }
+  const toInsert = newFacts.filter(f => !memoryCache.includes(f));
+  if (toInsert.length === 0) return;
+  // 先更新本地缓存（保证本地也有）
+  memoryCache = [...memoryCache, ...toInsert].slice(0, MAX_MEMORIES);
+  localStorage.setItem(MEM_CACHE_KEY, JSON.stringify(memoryCache));
+  if (!userCode) return;
   try {
-    // 只插入本地缓存里没有的
-    const toInsert = newFacts.filter(f => !memoryCache.includes(f));
-    if (toInsert.length === 0) return;
     const rows = toInsert.map(f => ({ code: userCode, fact: f }));
-    const { error } = await supa.from('memories').insert(rows);
-    if (error) throw error;
-    memoryCache = [...memoryCache, ...toInsert].slice(0, MAX_MEMORIES);
-    localStorage.setItem(MEM_CACHE_KEY, JSON.stringify(memoryCache));
+    const resp = await fetch(`${SUPA_URL}/rest/v1/memories`, {
+      method: 'POST',
+      headers: { ...supaHeaders(true), 'Prefer': 'return=minimal' },
+      body: JSON.stringify(rows)
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    cloudOK = true;
     console.log('[记忆] 云端新增', toInsert.length, '条');
   } catch (e) {
-    console.warn('[记忆] 云端写入失败', e.message);
+    console.warn('[记忆] 云端写入失败（本地已保存）', e.message);
+    cloudOK = false;
   }
 }
 
 // 清空云端记忆
 async function clearMemory() {
-  if (userCode && supabase) {
-    try { await supa.from('memories').delete().eq('code', userCode); } catch(e){}
-  }
   memoryCache = [];
   localStorage.removeItem(MEM_CACHE_KEY);
+  if (!userCode) return;
+  try {
+    const resp = await fetch(
+      `${SUPA_URL}/rest/v1/memories?code=eq.${encodeURIComponent(userCode)}`,
+      { method: 'DELETE', headers: supaHeaders() }
+    );
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+  } catch (e) {
+    console.warn('[记忆] 云端清空失败', e.message);
+  }
 }
 
 function buildSystemPrompt() {
@@ -937,7 +952,8 @@ const memClear = document.getElementById('memClear');
 
 function renderMemoryPanel() {
   const mems = memoryCache;
-  memCount.textContent = mems.length + ' 条 · 码: ' + (userCode || '未设');
+  const cloudTag = cloudOK ? '☁️ 已同步' : '⚠️ 仅本地';
+  memCount.textContent = mems.length + ' 条 · ' + cloudTag + ' · ' + (userCode || '未设码');
   if (mems.length === 0) {
     memList.innerHTML = '<div class="empty">还没记住什么呢<br/>多聊几句就有了～</div>';
     memBtn.classList.remove('has-mem');
