@@ -481,9 +481,9 @@ const quick = document.getElementById('quick');
 const history = [];
 
 /* ========= 长期记忆系统（Supabase 云端同步） ========= */
-const SUPA_URL = 'https://nlwsepthvbxbtekabgzk.supabase.co';
+const SUPA_URL = 'https://nlwsepthvbxbtekabgzk.supa.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd3NlcHRodmJ4YnRla2FiZ3prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3ODk3MTIsImV4cCI6MjEwNTM2NTcxMn0.0kw4M8XE3rB6kpLB5QJPzJG0UoPoIg5D_B-aRjvAEhs';
-const supabase = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null;
+const supa = window.supabase ? window.supa.createClient(SUPA_URL, SUPA_KEY) : null;
 
 const MEM_CACHE_KEY = 'songyi_memory_cache';
 const HIST_KEY = 'songyi_history_v1';
@@ -495,7 +495,7 @@ let memoryCache = [];
 
 // 从云端拉取记忆（按记忆码）
 async function loadMemory() {
-  if (!userCode || !supabase) {
+  if (!userCode || !supa) {
     memoryCache = JSON.parse(localStorage.getItem(MEM_CACHE_KEY) || '[]');
     return memoryCache;
   }
@@ -518,7 +518,7 @@ async function loadMemory() {
 
 // 保存新记忆到云端（去重）
 async function saveMemory(newFacts) {
-  if (!userCode || !supabase) {
+  if (!userCode || !supa) {
     memoryCache = [...new Set([...memoryCache, ...newFacts])].slice(0, MAX_MEMORIES);
     localStorage.setItem(MEM_CACHE_KEY, JSON.stringify(memoryCache));
     return;
@@ -528,7 +528,7 @@ async function saveMemory(newFacts) {
     const toInsert = newFacts.filter(f => !memoryCache.includes(f));
     if (toInsert.length === 0) return;
     const rows = toInsert.map(f => ({ code: userCode, fact: f }));
-    const { error } = await supabase.from('memories').insert(rows);
+    const { error } = await supa.from('memories').insert(rows);
     if (error) throw error;
     memoryCache = [...memoryCache, ...toInsert].slice(0, MAX_MEMORIES);
     localStorage.setItem(MEM_CACHE_KEY, JSON.stringify(memoryCache));
@@ -541,7 +541,7 @@ async function saveMemory(newFacts) {
 // 清空云端记忆
 async function clearMemory() {
   if (userCode && supabase) {
-    try { await supabase.from('memories').delete().eq('code', userCode); } catch(e){}
+    try { await supa.from('memories').delete().eq('code', userCode); } catch(e){}
   }
   memoryCache = [];
   localStorage.removeItem(MEM_CACHE_KEY);
