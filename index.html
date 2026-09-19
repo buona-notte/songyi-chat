@@ -281,6 +281,62 @@
   }
   .mem-clear:hover { background: #fff3e0; }
 
+  /* ===== 记忆码弹窗 ===== */
+  .code-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .code-modal.hidden { display: none; }
+  .code-box {
+    background: #fff;
+    border-radius: 20px;
+    padding: 28px 24px;
+    width: 90%;
+    max-width: 340px;
+    text-align: center;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  }
+  .code-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #2e7d32;
+    margin-bottom: 10px;
+  }
+  .code-desc {
+    font-size: 13px;
+    color: #666;
+    line-height: 1.6;
+    margin-bottom: 18px;
+  }
+  .code-input {
+    width: 100%;
+    padding: 12px 16px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-size: 15px;
+    outline: none;
+    margin-bottom: 14px;
+    text-align: center;
+  }
+  .code-input:focus { border-color: #4caf50; }
+  .code-save {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    background: #4caf50;
+    color: #fff;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .code-save:hover { background: #388e3c; }
+
   /* ==================== 底部输入条 ==================== */
   .input-bar {
     flex-shrink: 0;
@@ -382,6 +438,18 @@
   <button class="send" id="sendBtn" disabled>发送</button>
 </div>
 
+<!-- 记忆码弹窗 -->
+<div class="code-modal" id="codeModal">
+  <div class="code-box">
+    <div class="code-title">设置记忆码</div>
+    <div class="code-desc">用一个码把所有设备的记忆连起来。<br/>手机和电脑填同一个码，就能共享宋意的记忆。</div>
+    <input type="text" id="codeInput" class="code-input" placeholder="4位以上，随便起（比如 hello123）" maxlength="20" />
+    <button class="code-save" id="codeSave">保存</button>
+  </div>
+</div>
+
+<!-- Supabase -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 /* ========= 配置 ========= */
 // 部署后自动走 Cloudflare Pages Functions 后端代理
@@ -412,21 +480,77 @@ const sendBtn = document.getElementById('sendBtn');
 const quick = document.getElementById('quick');
 const history = [];
 
-/* ========= 长期记忆系统 ========= */
-const MEM_KEY = 'songyi_memory_v1';
+/* ========= 长期记忆系统（Supabase 云端同步） ========= */
+const SUPA_URL = 'https://nlwsepthvbxbtekabgzk.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd3NlcHRodmJ4YnRla2FiZ3prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3ODk3MTIsImV4cCI6MjEwNTM2NTcxMn0.0kw4M8XE3rB6kpLB5QJPzJG0UoPoIg5D_B-aRjvAEhs';
+const supabase = window.supabase ? window.supabase.createClient(SUPA_URL, SUPA_KEY) : null;
+
+const MEM_CACHE_KEY = 'songyi_memory_cache';
 const HIST_KEY = 'songyi_history_v1';
+const CODE_KEY = 'songyi_user_code';
 const MAX_MEMORIES = 60;
 
-function loadMemory() {
-  try { return JSON.parse(localStorage.getItem(MEM_KEY)) || []; }
-  catch { return []; }
+let userCode = localStorage.getItem(CODE_KEY) || '';
+let memoryCache = [];
+
+// 从云端拉取记忆（按记忆码）
+async function loadMemory() {
+  if (!userCode || !supabase) {
+    memoryCache = JSON.parse(localStorage.getItem(MEM_CACHE_KEY) || '[]');
+    return memoryCache;
+  }
+  try {
+    const { data, error } = await supabase
+      .from('memories')
+      .select('fact')
+      .eq('code', userCode)
+      .order('created_at', { ascending: true });
+    if (error) throw error;
+    memoryCache = (data || []).map(r => r.fact);
+    localStorage.setItem(MEM_CACHE_KEY, JSON.stringify(memoryCache));
+    return memoryCache;
+  } catch (e) {
+    console.warn('[记忆] 云端读取失败，用本地缓存', e.message);
+    memoryCache = JSON.parse(localStorage.getItem(MEM_CACHE_KEY) || '[]');
+    return memoryCache;
+  }
 }
-function saveMemory(list) {
-  localStorage.setItem(MEM_KEY, JSON.stringify(list.slice(0, MAX_MEMORIES)));
+
+// 保存新记忆到云端（去重）
+async function saveMemory(newFacts) {
+  if (!userCode || !supabase) {
+    memoryCache = [...new Set([...memoryCache, ...newFacts])].slice(0, MAX_MEMORIES);
+    localStorage.setItem(MEM_CACHE_KEY, JSON.stringify(memoryCache));
+    return;
+  }
+  try {
+    // 只插入本地缓存里没有的
+    const toInsert = newFacts.filter(f => !memoryCache.includes(f));
+    if (toInsert.length === 0) return;
+    const rows = toInsert.map(f => ({ code: userCode, fact: f }));
+    const { error } = await supabase.from('memories').insert(rows);
+    if (error) throw error;
+    memoryCache = [...memoryCache, ...toInsert].slice(0, MAX_MEMORIES);
+    localStorage.setItem(MEM_CACHE_KEY, JSON.stringify(memoryCache));
+    console.log('[记忆] 云端新增', toInsert.length, '条');
+  } catch (e) {
+    console.warn('[记忆] 云端写入失败', e.message);
+  }
 }
+
+// 清空云端记忆
+async function clearMemory() {
+  if (userCode && supabase) {
+    try { await supabase.from('memories').delete().eq('code', userCode); } catch(e){}
+  }
+  memoryCache = [];
+  localStorage.removeItem(MEM_CACHE_KEY);
+}
+
 function buildSystemPrompt() {
-  const mems = loadMemory();
-  const memText = mems.length ? mems.map((m, i) => `${i + 1}. ${m}`).join('\n') : '（暂无）';
+  const memText = memoryCache.length
+    ? memoryCache.map((m, i) => `${i + 1}. ${m}`).join('\n')
+    : '（暂无）';
   return BASE_SYSTEM.replace('{memory}', memText);
 }
 
@@ -434,7 +558,7 @@ function buildSystemPrompt() {
 const PERSONAL_PATTERNS = /我(叫|是|喜欢|不喜欢|爱|讨厌|今年|岁|住在|在.*工作|在.*上学|学|做|想|觉得|有|没有|怕|擅长|不擅长|最近|今天|生日|家|爸|妈|朋友|猫|狗|宠物)/;
 
 async function extractMemory(userText, aiReply) {
-  if (!PERSONAL_PATTERNS.test(userText)) return; // 不含个人信息就不提取，省钱
+  if (!PERSONAL_PATTERNS.test(userText)) return;
   const url = IS_CF_PAGES ? API_URL : DIRECT_URL;
   const headers = { 'Content-Type': 'application/json' };
   if (!IS_CF_PAGES) headers['Authorization'] = 'Bearer ' + LOCAL_DEV_KEY;
@@ -461,27 +585,18 @@ async function extractMemory(userText, aiReply) {
     if (!resp.ok) return;
     const data = await resp.json();
     let text = (data.choices?.[0]?.message?.content || '').trim();
-    // 兜底解析：提取第一个 [...]
     const match = text.match(/\[[\s\S]*?\]/);
     if (!match) return;
     const arr = JSON.parse(match[0]);
     if (!Array.isArray(arr)) return;
-
-    const existing = new Set(loadMemory());
-    const before = existing.size;
-    arr.forEach(fact => {
-      if (typeof fact === 'string' && fact.trim()) existing.add(fact.trim());
-    });
-    if (existing.size > before) {
-      saveMemory([...existing]);
-      console.log('[记忆] 新增', existing.size - before, '条，当前共', existing.size, '条');
-    }
+    const facts = arr.filter(f => typeof f === 'string' && f.trim()).map(f => f.trim());
+    if (facts.length) await saveMemory(facts);
   } catch (e) {
     console.warn('[记忆] 提取失败', e.message);
   }
 }
 
-// 持久化对话历史（刷新不丢）
+// 持久化对话历史（仅本地，不跨设备）
 function saveHistory() {
   try { localStorage.setItem(HIST_KEY, JSON.stringify(history.slice(-100))); } catch {}
 }
@@ -615,14 +730,38 @@ quick.addEventListener('click', e => {
 });
 
 /* ========= 开场 ========= */
-// 载入历史对话到上下文（界面不重渲染，保持清爽，但 AI 记得）
 loadHistory();
 
-setTimeout(() => {
-  const mems = loadMemory();
+// 记忆码弹窗逻辑
+const codeModal = document.getElementById('codeModal');
+const codeInput = document.getElementById('codeInput');
+const codeSave = document.getElementById('codeSave');
+
+function showCodeModal() {
+  codeModal.classList.remove('hidden');
+  codeInput.value = userCode;
+  setTimeout(() => codeInput.focus(), 100);
+}
+function hideCodeModal() { codeModal.classList.add('hidden'); }
+
+codeSave.addEventListener('click', async () => {
+  const code = codeInput.value.trim();
+  if (code.length < 3) { alert('记忆码至少 3 位'); return; }
+  userCode = code;
+  localStorage.setItem(CODE_KEY, userCode);
+  hideCodeModal();
+  await loadMemory();
+  renderMemoryPanel();
+  // 有了云端记忆后，更新开场
+  if (currentHimBubble) currentHimBubble.remove();
+  doGreeting();
+});
+
+// 开场问候
+async function doGreeting() {
+  const mems = memoryCache;
   let greeting;
   if (mems.length > 0) {
-    // 有记忆就用记忆开场
     const nameMem = mems.find(m => /对方叫/.test(m));
     if (nameMem) {
       const name = nameMem.replace(/对方叫/, '').trim();
@@ -634,7 +773,17 @@ setTimeout(() => {
     greeting = '嗨。\n我是宋意。\n你来了很久了，只是一直没说话。';
   }
   placeHimBubble(greeting);
-}, 400);
+}
+
+// 初始化
+(async function init() {
+  if (userCode) {
+    await loadMemory();
+  } else {
+    showCodeModal();
+  }
+  setTimeout(doGreeting, 400);
+})();
 
 /* ========= 记忆面板交互 ========= */
 const memBtn = document.getElementById('memBtn');
@@ -645,8 +794,8 @@ const memClose = document.getElementById('memClose');
 const memClear = document.getElementById('memClear');
 
 function renderMemoryPanel() {
-  const mems = loadMemory();
-  memCount.textContent = mems.length + ' 条';
+  const mems = memoryCache;
+  memCount.textContent = mems.length + ' 条 · 码: ' + (userCode || '未设');
   if (mems.length === 0) {
     memList.innerHTML = '<div class="empty">还没记住什么呢<br/>多聊几句就有了～</div>';
     memBtn.classList.remove('has-mem');
@@ -660,14 +809,21 @@ memBtn.addEventListener('click', () => {
   memPanel.classList.toggle('open');
 });
 memClose.addEventListener('click', () => memPanel.classList.remove('open'));
-memClear.addEventListener('click', () => {
+memClear.addEventListener('click', async () => {
   if (confirm('确定要让宋意忘掉关于你的一切吗？')) {
-    saveMemory([]);
+    await clearMemory();
     renderMemoryPanel();
     memBtn.classList.remove('has-mem');
   }
 });
-// 初始化小红点
+// 换码按钮（加到面板底部）
+const changeCodeBtn = document.createElement('button');
+changeCodeBtn.className = 'mem-clear';
+changeCodeBtn.textContent = '换记忆码';
+changeCodeBtn.style.marginLeft = '8px';
+changeCodeBtn.addEventListener('click', showCodeModal);
+document.querySelector('.mem-foot').appendChild(changeCodeBtn);
+
 renderMemoryPanel();
 </script>
 </body>
