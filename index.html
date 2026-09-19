@@ -449,7 +449,7 @@
 </div>
 
 <!-- Supabase -->
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 /* ========= 配置 ========= */
 // 部署后自动走 Cloudflare Pages Functions 后端代理
@@ -481,9 +481,11 @@ const quick = document.getElementById('quick');
 const history = [];
 
 /* ========= 长期记忆系统（Supabase 云端同步） ========= */
-const SUPA_URL = 'https://nlwsepthvbxbtekabgzk.supa.co';
+const SUPA_URL = 'https://nlwsepthvbxbtekabgzk.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd3NlcHRodmJ4YnRla2FiZ3prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3ODk3MTIsImV4cCI6MjEwNTM2NTcxMn0.0kw4M8XE3rB6kpLB5QJPzJG0UoPoIg5D_B-aRjvAEhs';
-const supa = window.supabase ? window.supa.createClient(SUPA_URL, SUPA_KEY) : null;
+const supa = (window.supabase && typeof window.supabase.createClient === 'function')
+  ? window.supabase.createClient(SUPA_URL, SUPA_KEY)
+  : null;
 
 const MEM_CACHE_KEY = 'songyi_memory_cache';
 const HIST_KEY = 'songyi_history_v1';
