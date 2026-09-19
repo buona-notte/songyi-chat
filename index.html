@@ -238,23 +238,23 @@
   }
   .quick button:hover { background:#e8f5e9; color:#2e7d32; transform: translateY(-2px); }
 
-  /* ===== 记忆面板 ===== */
+  /* ===== 记忆按钮（放在输入条里，和输入框同一行） ===== */
   .mem-btn {
-    position: absolute;
-    right: 16px;
-    top: 16px;
+    flex-shrink: 0;
     width: 40px; height: 40px;
     border-radius: 50%;
     border: none;
-    background: rgba(255,255,255,0.85);
-    backdrop-filter: blur(8px);
+    background: #fafaf7;
+    border: 1px solid #e0e0e0;
     font-size: 18px;
     cursor: pointer;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    z-index: 20;
-    transition: transform .2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .2s, background .15s;
+    position: relative;
   }
-  .mem-btn:hover { transform: scale(1.1) rotate(-8deg); }
+  .mem-btn:hover { transform: scale(1.1) rotate(-8deg); background:#e8f5e9; }
   .mem-btn.has-mem::after {
     content: '';
     position: absolute;
@@ -264,16 +264,18 @@
     border-radius: 50%;
   }
 
+  /* 记忆面板：从输入条上方弹出 */
   .mem-panel {
     position: absolute;
-    right: 16px;
-    top: 64px;
+    left: 16px;
+    bottom: 100%;
+    margin-bottom: 8px;
     width: 280px;
     max-height: 60vh;
     background: #fff;
     border-radius: 16px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.15);
-    z-index: 21;
+    box-shadow: 0 -4px 30px rgba(0,0,0,0.15);
+    z-index: 30;
     display: none;
     flex-direction: column;
     overflow: hidden;
@@ -400,6 +402,7 @@
     align-items: center;
     gap: 12px;
     z-index: 10;
+    position: relative;
   }
   .input-bar textarea {
     flex: 1;
@@ -492,11 +495,15 @@
     <button data-text="陪我聊会天">陪我聊会天</button>
     <button data-text="给我讲个冷笑话">给我讲个冷笑话</button>
   </div>
+</div>
 
-  <!-- 记忆面板按钮 -->
+<div class="input-bar">
+  <!-- 记忆面板按钮（和输入框同一行） -->
   <button class="mem-btn" id="memBtn" title="宋意的记忆">🧠</button>
+  <textarea id="input" rows="1" placeholder=""></textarea>
+  <button class="send" id="sendBtn" disabled>发送</button>
 
-  <!-- 记忆面板 -->
+  <!-- 记忆面板（从输入条上方弹出） -->
   <div class="mem-panel" id="memPanel">
     <div class="mem-head">
       <span>宋意记得的事</span>
@@ -508,11 +515,6 @@
       <button class="mem-clear" id="memClear">清空记忆</button>
     </div>
   </div>
-</div>
-
-<div class="input-bar">
-  <textarea id="input" rows="1" placeholder=""></textarea>
-  <button class="send" id="sendBtn" disabled>发送</button>
 </div>
 
 <!-- 记忆码弹窗 -->
