@@ -759,7 +759,7 @@ async function saveSlot(name) {
     name: name || ('档' + Date.now().toString(36)),
     scene: currentScene,
     chapter: currentChapter,
-    cast: currentCast,
+    cast_list: currentCast,
     history: history.slice(-60),
     created_at: new Date().toISOString()
   };
@@ -792,7 +792,7 @@ async function loadSlots() {
   }
   try {
     const resp = await fetch(
-      `${SUPA_URL}/rest/v1/story_saves?select=id,name,scene,chapter,cast,created_at&code=eq.${encodeURIComponent(userCode)}&order=created_at.desc&limit=${MAX_SLOTS}`,
+      `${SUPA_URL}/rest/v1/story_saves?select=id,name,scene,chapter,cast_list,created_at&code=eq.${encodeURIComponent(userCode)}&order=created_at.desc&limit=${MAX_SLOTS}`,
       { headers: supaH() }
     );
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
@@ -836,7 +836,7 @@ async function applySlot(slot) {
   if (!slot) return;
   if (slot.scene) setScene(slot.scene);
   if (slot.chapter) { currentChapter = slot.chapter; scChap.textContent = currentChapter; }
-  if (slot.cast) { currentCast = slot.cast; renderCast(); }
+  if (slot.cast_list) { currentCast = slot.cast_list; renderCast(); }
   if (slot.history) {
     history.length = 0;
     history.push(...slot.history);
