@@ -114,6 +114,48 @@
     filter: drop-shadow(0 1px 0 #e8e8e8);
   }
 
+  /* ==================== 长按看背景模式 ==================== */
+  .long-press-ring {
+    position: fixed;
+    width: 70px; height: 70px;
+    border-radius: 50%;
+    border: 3px solid rgba(76,175,80,0.3);
+    pointer-events: none;
+    z-index: 999;
+    display: none;
+    transform: translate(-50%, -50%);
+  }
+  .long-press-ring.active { display: block; }
+  .long-press-ring::before {
+    content: '';
+    position: absolute;
+    inset: -3px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    border-top-color: #4caf50;
+    animation: ring-spin 3s linear forwards;
+  }
+  @keyframes ring-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  /* 进入"纯净模式"：隐藏所有 UI，只留角色 */
+  body.clean-mode .char-card,
+  body.clean-mode .bubble-layer,
+  body.clean-mode .quick,
+  body.clean-mode .mem-btn,
+  body.clean-mode .mem-panel,
+  body.clean-mode .input-bar {
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.4s ease;
+  }
+  body.clean-mode .hero { filter: drop-shadow(0 20px 60px rgba(76,175,80,0.3)); transition: filter .4s; }
+  .char-card, .bubble-layer, .quick, .mem-btn, .mem-panel, .input-bar {
+    transition: opacity 0.4s ease;
+  }
+
   .bubble.me {
     background: #95ec69;
     color: #000;
@@ -458,6 +500,7 @@
 </div>
 
 <!-- Supabase -->
+<div class="long-press-ring" id="pressRing"></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
 /* ========= 配置 ========= */
@@ -490,7 +533,52 @@ const sendBtn = document.getElementById('sendBtn');
 const quick = document.getElementById('quick');
 const history = [];
 
-/* ========= 长期记忆系统（Supabase 云端同步） ========= */
+/* ========= 长按 3 秒看背景 ========= */
+const stage = document.getElementById('stage');
+const pressRing = document.getElementById('pressRing');
+let pressTimer = null;
+let pressActivated = false;
+
+function startPress(e) {
+  // 只在点背景（非交互元素）时触发
+  const tag = e.target.tagName;
+  if (e.target.closest('button, textarea, input, .bubble, .quick, .mem-btn, .mem-panel, .char-card, .code-modal')) return;
+
+  const pt = e.touches ? e.touches[0] : e;
+  pressRing.style.left = pt.clientX + 'px';
+  pressRing.style.top = pt.clientY + 'px';
+  pressRing.classList.add('active');
+  // 重置动画
+  pressRing.style.animation = 'none';
+  pressRing.offsetHeight; // 触发重绘
+  pressRing.style.animation = '';
+
+  pressActivated = false;
+  pressTimer = setTimeout(() => {
+    pressActivated = true;
+    document.body.classList.add('clean-mode');
+  }, 3000);
+}
+
+function endPress() {
+  if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+  pressRing.classList.remove('active');
+  if (pressActivated) {
+    // 松手后恢复 UI
+    document.body.classList.remove('clean-mode');
+    pressActivated = false;
+  }
+}
+
+stage.addEventListener('mousedown', startPress);
+stage.addEventListener('touchstart', startPress, { passive: true });
+window.addEventListener('mouseup', endPress);
+window.addEventListener('touchend', endPress);
+window.addEventListener('touchcancel', endPress);
+// 防止长按选中文字
+stage.addEventListener('contextmenu', e => e.preventDefault());
+
+
 const SUPA_URL = 'https://nlwsepthvbxbtekabgzk.supabase.co';
 const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5sd3NlcHRodmJ4YnRla2FiZ3prIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk3ODk3MTIsImV4cCI6MjEwNTM2NTcxMn0.0kw4M8XE3rB6kpLB5QJPzJG0UoPoIg5D_B-aRjvAEhs';
 const supa = (window.supabase && typeof window.supabase.createClient === 'function')
