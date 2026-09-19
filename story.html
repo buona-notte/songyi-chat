@@ -461,6 +461,73 @@
   .history-line .h-who { font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 4px; }
   .history-line .h-text { font-size: 14px; line-height: 1.6; }
 
+
+  /* 点击推进层 */
+  .click-layer {
+    position: fixed;
+    inset: 0;
+    z-index: 8;
+    cursor: pointer;
+  }
+
+  /* 说话者名字标签 - 确保不被挡 */
+  .speaker-tag {
+    z-index: 12;
+  }
+
+  /* 对话框点击时视觉反馈 */
+  .dialog-box.advance {
+    animation: dialogPulse 0.15s ease;
+  }
+  @keyframes dialogPulse {
+    0% { transform: translateX(-50%) scale(1); }
+    50% { transform: translateX(-50%) scale(0.98); }
+    100% { transform: translateX(-50%) scale(1); }
+  }
+
+  /* 横屏锁定提示（仅竖屏手机显示） */
+  .rotate-hint {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(20,20,20,0.95);
+    z-index: 999;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: #fff;
+    font-size: 16px;
+    text-align: center;
+    gap: 20px;
+  }
+  .rotate-hint.show { display: flex; }
+  .rotate-hint .icon {
+    font-size: 60px;
+    animation: rotatePhone 2s ease-in-out infinite;
+  }
+  @keyframes rotatePhone {
+    0%,100% { transform: rotate(-90deg); }
+    50% { transform: rotate(0deg); }
+  }
+
+  /* 横屏大改 */
+  @media (orientation: landscape) and (max-height: 500px) {
+    body { overflow: hidden; }
+    .sprite { height: 95%; bottom: 5%; }
+    .sprite.left { left: -10%; }
+    .sprite.right { right: -10%; }
+    .dialog-box { width: 88%; max-width: 720px; bottom: 6px; }
+    .dialog-content { max-height: 70px; font-size: 14px; padding: 20px 20px 10px; line-height: 1.55; }
+    .speaker-tag { font-size: 13px; top: -12px; padding: 4px 14px 4px 12px; }
+    .scene-info { font-size: 11px; padding: 5px 10px; }
+    .choices { bottom: 180px; width: 80%; max-width: 550px; }
+    .choice-btn { padding: 8px 14px; font-size: 13px; }
+    .cast-indicator { top: 60px; }
+    .ctrl-btn { width: 32px; height: 32px; font-size: 14px; }
+    .input-toggle { width: 38px; height: 38px; font-size: 16px; }
+    .input-bar { bottom: 6px; max-width: 720px; }
+  }
+
   /* 移动端适配（竖屏） */
   @media (max-width: 600px) and (orientation: portrait) {
     .sprite { height: 75%; bottom: 18%; }
@@ -554,6 +621,13 @@
     <input type="text" id="codeInput" class="code-input" placeholder="3位以上，随便起（比如 beixing123）" maxlength="20" />
     <button class="code-save" id="codeSave">开始</button>
   </div>
+</div>
+
+<!-- 横屏提示 -->
+<div class="rotate-hint" id="rotateHint">
+  <div class="icon">📱</div>
+  <div>请横过手机游玩<br/>体验更佳</div>
+  <button style="margin-top:10px;border:1px solid rgba(255,255,255,0.4);background:transparent;color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;cursor:pointer;" id="rotateDismiss">竖屏也玩</button>
 </div>
 
 <script>
@@ -726,7 +800,6 @@ function setDialog(who, text, type='') {
   // 切立绘：如果这个角色有立绘，让他动一下
   if (who && SPRITE_MAP[who]) {
     if (lastSpeaker !== who) {
-      // 重新排列：说话者居中，其他人左右
       clearAllSprites();
       const others = currentCast.filter(n => n !== who && SPRITE_MAP[n]);
       showSprite(who, 'center');
@@ -735,6 +808,9 @@ function setDialog(who, text, type='') {
       lastSpeaker = who;
     }
   }
+  // 如果正在打字，先停掉
+  clearTimeout(typingTimer);
+  clickShowing = false;
 }
 
 function showTyping(who='旁白') {
@@ -838,12 +914,57 @@ function parseAIResponse(text) {
 }
 
 /* ========= 逐条显示（打字机式） ========= */
-async function playLines(lines, delay=600) {
-  for (const l of lines) {
-    setDialog(l.who, l.text, l.type);
-    allLines.push({ who: l.who, text: l.text });
-    await new Promise(r => setTimeout(r, Math.max(delay, l.text.length * 30)));
+// 点击推进状态机
+let clickQueue = [];  // 待显示的 line 队列
+let clickShowing = false;  // 正在打字中（显示当前 line）
+
+function tapAdvance() {
+  if (clickShowing) {
+    // 还在打字，立即显示完整文本
+    finishTyping();
+    return;
   }
+  if (clickQueue.length === 0) return;
+  const l = clickQueue.shift();
+  setDialog(l.who, l.text, l.type);
+  allLines.push({ who: l.who, text: l.text });
+  startTyping(l.text, l.done);
+}
+
+let typingTimer = null;
+let typingResolve = null;
+function startTyping(text, done) {
+  clickShowing = true;
+  // 打字机效果
+  let i = 0;
+  dialogContent.innerHTML = '';
+  function typeNext() {
+    if (i < text.length) {
+      dialogContent.innerHTML = escapeHtml(text.substring(0, i + 1));
+      i++;
+      typingTimer = setTimeout(typeNext, 25);
+    } else {
+      clickShowing = false;
+      typingResolve = null;
+      if (done) done();
+    }
+  }
+  typeNext();
+}
+function finishTyping() {
+  clearTimeout(typingTimer);
+  clickShowing = false;
+  // 把完整文本重新显示
+  if (typingResolve) typingResolve();
+}
+
+async function playLines(lines) {
+  clickQueue = [];
+  for (const l of lines) {
+    clickQueue.push({ who: l.who, text: l.text, type: l.type });
+  }
+  // 自动点一下开始第一条
+  setTimeout(tapAdvance, 300);
 }
 
 async function renderAIResponse(text) {
@@ -1163,6 +1284,34 @@ async function initStory() {
     }
   }
 }
+
+// 点击推进绑定
+document.addEventListener('click', (e) => {
+  // 排除输入框、按钮、存档面板等交互元素
+  if (e.target.closest('textarea,button,.save-panel,.history-viewer,.code-modal,.input-bar,.choices,.ctrl-btn')) return;
+  tapAdvance();
+});
+
+// 触摸也推进（排除输入）
+document.addEventListener('touchend', (e) => {
+  if (e.target.closest('textarea,button,.save-panel,.history-viewer,.code-modal,.input-bar,.choices,.ctrl-btn')) return;
+  tapAdvance();
+});
+
+// 横屏提示
+const rotateHint = document.getElementById('rotateHint');
+const rotateDismiss = document.getElementById('rotateDismiss');
+function checkRotate() {
+  if (window.innerHeight > window.innerWidth && window.innerWidth < 700) {
+    rotateHint.classList.add('show');
+  } else {
+    rotateHint.classList.remove('show');
+  }
+}
+rotateDismiss.addEventListener('click', () => rotateHint.classList.remove('show'));
+window.addEventListener('resize', checkRotate);
+window.addEventListener('orientationchange', checkRotate);
+checkRotate();
 
 (async function init() {
   if (userCode) await initStory();
