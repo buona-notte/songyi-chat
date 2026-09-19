@@ -146,8 +146,8 @@
   @keyframes tdot { 0%,60%,100%{opacity:.2; transform:translateY(0);} 30%{opacity:1; transform:translateY(-3px);} }
 
   /* ==================== 对话历史（浮动列表 + 用户视角） ==================== */
-  /* 玩家历史气泡（靠右堆叠） */
-  .history-me {
+  /* 玩家历史气泡容器（靠右自动堆叠，不会重叠） */
+  .my-bubbles {
     position: absolute;
     right: 28px;
     bottom: 130px;
@@ -155,6 +155,15 @@
     flex-direction: column-reverse;
     gap: 10px;
     pointer-events: none;
+    max-width: 60%;
+    align-items: flex-end;
+  }
+  .my-bubbles .bubble.me {
+    position: relative;
+    right: auto;
+    bottom: auto;
+    max-width: 280px;
+    margin: 0;
   }
 
   /* ==================== 快捷回复 ==================== */
@@ -405,7 +414,7 @@
 
   <!-- 气泡层（浮在角色旁边） -->
   <div class="bubble-layer" id="bubbleLayer">
-    <!-- 历史"你"的气泡叠在右下角，"他"的说话气泡只显示最新一条 -->
+    <div class="my-bubbles" id="myBubbles"></div>
   </div>
 
   <!-- 快捷回复 -->
@@ -475,6 +484,7 @@ const BASE_SYSTEM = `你是宋意，一个19岁的男孩，中意混血。
 
 /* ========= DOM ========= */
 const bubbleLayer = document.getElementById('bubbleLayer');
+const myBubblesEl = document.getElementById('myBubbles');
 const input = document.getElementById('input');
 const sendBtn = document.getElementById('sendBtn');
 const quick = document.getElementById('quick');
@@ -612,7 +622,6 @@ function loadHistory() {
 
 /* ========= 气泡管理 ========= */
 let currentHimBubble = null;  // 宋意当前显示的气泡（浮在旁边，总是只有最新一条）
-const myBubbles = [];         // 玩家自己的气泡（右下堆叠）
 
 function placeHimBubble(text, opts = {}) {
   if (currentHimBubble) currentHimBubble.remove();
@@ -629,16 +638,12 @@ function placeMyBubble(text) {
   const b = document.createElement('div');
   b.className = 'bubble me';
   b.textContent = text;
-  bubbleLayer.appendChild(b);
-  myBubbles.unshift(b);
+  myBubblesEl.appendChild(b);  // 加进 flex 容器，自动堆叠不重叠
 
-  // 右下堆叠，每条上移一点
-  myBubbles.forEach((el, i) => {
-    el.style.bottom = (130 + i * 70) + 'px';
-  });
-  // 限制最多 4 条历史（避免挡太多），超出就淡出
-  if (myBubbles.length > 4) {
-    const old = myBubbles.pop();
+  // 限制最多 4 条历史（避免挡太多），超出就淡出最旧的
+  const all = myBubblesEl.querySelectorAll('.bubble.me');
+  if (all.length > 4) {
+    const old = all[0];
     old.style.transition = 'opacity .4s';
     old.style.opacity = '0';
     setTimeout(() => old.remove(), 400);
