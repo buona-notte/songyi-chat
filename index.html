@@ -429,6 +429,20 @@
   }
   .input-bar .send:hover { background:#06ad56; }
   .input-bar .send[disabled] { background:#ccc; cursor:not-allowed; }
+  .input-bar .kbd-btn {
+    flex-shrink: 0;
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    border: 1px solid #e0e0e0;
+    background: #fafaf7;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s;
+  }
+  .input-bar .kbd-btn:hover { background:#e8f5e9; }
 
   /* 移动端适配 */
   @media (max-width: 600px) {
@@ -485,6 +499,7 @@
 </div>
 
 <div class="input-bar">
+  <button class="kbd-btn" id="kbdBtn" title="点击弹出键盘">⌨️</button>
   <textarea id="input" rows="1" placeholder=""></textarea>
   <button class="send" id="sendBtn" disabled>发送</button>
 </div>
@@ -532,6 +547,27 @@ const input = document.getElementById('input');
 const sendBtn = document.getElementById('sendBtn');
 const quick = document.getElementById('quick');
 const history = [];
+
+/* ========= 键盘按钮（水墨屏/特殊设备强制聚焦） ========= */
+const kbdBtn = document.getElementById('kbdBtn');
+kbdBtn.addEventListener('click', () => {
+  input.focus({ preventScroll: false });
+  input.setAttribute('autofocus', '');
+  // 尝试创建一个临时 input 来"唤醒"系统键盘
+  const tmp = document.createElement('input');
+  tmp.style.position = 'fixed';
+  tmp.style.top = '0';
+  tmp.style.opacity = '0';
+  tmp.style.width = '1px';
+  tmp.style.height = '1px';
+  document.body.appendChild(tmp);
+  tmp.focus();
+  setTimeout(() => {
+    tmp.remove();
+    input.focus();
+    input.click();
+  }, 100);
+});
 
 /* ========= 长按 3 秒看背景 ========= */
 const stage = document.getElementById('stage');
